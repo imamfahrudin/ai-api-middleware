@@ -20,7 +20,8 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(
 app = Flask(
     __name__, 
     template_folder=os.path.join(os.path.dirname(__file__), 'app', 'templates'),
-    static_folder=os.path.join(os.path.dirname(__file__), 'app', 'static')
+    static_folder=os.path.join(os.path.dirname(__file__), 'app', 'static'),
+    static_url_path='/middleware/static'
 )
 app.secret_key = SECRET_KEY
 
