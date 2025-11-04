@@ -254,7 +254,8 @@ class KeyManager:
             
             return {"historical": historical_data, "health_status": health_status, "error_codes_today": error_codes_today, "request_distribution": request_distribution, "model_usage_today": model_usage_today}
 
-    def get_next_key(self):
+    def get_next_key(self, exclude_ids=None):
+        """Get the next healthy key, optionally excluding certain key IDs (for failover)."""
         with self.lock:
             now_iso = datetime.datetime.now(datetime.timezone.utc).isoformat()
             cursor = self.conn.cursor()
@@ -263,8 +264,13 @@ class KeyManager:
             cursor.execute("UPDATE keys SET status='Healthy', disabled_until=NULL WHERE status='Resting' AND disabled_until < ?", (now_iso,))
             self.conn.commit()
 
-            # Select the least recently used key for rotation
-            cursor.execute("SELECT * FROM keys WHERE status = 'Healthy' ORDER BY last_rotated_at ASC LIMIT 1")
+            # Select the least recently used key for rotation, excluding already tried keys
+            if exclude_ids:
+                placeholders = ','.join('?' for _ in exclude_ids)
+                cursor.execute(f"SELECT * FROM keys WHERE status = 'Healthy' AND id NOT IN ({placeholders}) ORDER BY last_rotated_at ASC LIMIT 1", exclude_ids)
+            else:
+                cursor.execute("SELECT * FROM keys WHERE status = 'Healthy' ORDER BY last_rotated_at ASC LIMIT 1")
+            
             key_info = cursor.fetchone()
 
             if not key_info:
