@@ -183,8 +183,8 @@ async function displayKeyDetails(keyId, keyName) {
                 <h2 class="text-xl font-bold mb-2">Notes</h2>
                 <p id="key-note-display" class="text-gray-300 whitespace-pre-wrap">Loading...</p>
             </div>
-            <div class="glass-card p-4"><canvas id="tokenChart"></canvas></div><div class="glass-card p-4"><canvas id="requestChart"></canvas></div>
-            <div class="lg:col-span-2 glass-card p-4"><canvas id="latencyChart"></canvas></div>
+            <div class="glass-card p-4 h-80"><canvas id="tokenChart"></canvas></div><div class="glass-card p-4 h-80"><canvas id="requestChart"></canvas></div>
+            <div class="lg:col-span-2 glass-card p-4 h-80"><canvas id="latencyChart"></canvas></div>
         </div>
         <div class="mt-8 flex gap-4">
              <button onclick="openModal(true, ${keyId}, '${keyName}')" class="bg-yellow-500 hover:bg-yellow-600 text-white font-bold py-2 px-4 rounded-md flex items-center gap-2">
