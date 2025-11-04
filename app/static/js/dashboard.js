@@ -33,15 +33,19 @@ async function fetchKeys() {
         li.className = 'sidebar-item p-3 rounded cursor-pointer hover:bg-gray-700';
         li.dataset.keyId = key.id; 
         li.dataset.keyName = key.name;
+        li.dataset.keyStatus = key.status;
         const isChecked = selectedIds.has(String(key.id)) ? 'checked' : '';
+        const keyDisplay = key.key_value.length > 12 ? `${key.key_value.slice(0, 4)}...${key.key_value.slice(-4)}` : key.key_value;
         li.innerHTML = `
             <div class="flex items-start gap-2">
-                <input type="checkbox" class="bulk-key-checkbox mt-1.5" data-id="${key.id}" ${isChecked}>
+                <input type="checkbox" class="bulk-key-checkbox mt-1" data-id="${key.id}" ${isChecked}>
                 <div class="flex-grow">
-                    <div class="font-bold">${key.name}</div>
-                    <div class="text-xs text-gray-400 font-mono">...${key.key_value.slice(-4)}</div>
+                    <div class="flex items-center gap-2 mb-1">
+                        ${getStatusBadge(key.status)}
+                        <div class="font-bold flex-grow">${key.name}</div>
+                        <div class="text-xs text-gray-400 font-mono">${keyDisplay}</div>
+                    </div>
                     ${getHealthBar(key.kpi)}
-                    <div class="mt-1">${getStatusBadge(key.status)}</div>
                 </div>
             </div>`;
         li.querySelector('.flex-grow').addEventListener('click', (e) => {
@@ -56,9 +60,16 @@ async function fetchKeys() {
 
 function filterKeys() {
     const query = document.getElementById('key-search').value.toLowerCase();
+    const statusFilter = document.getElementById('status-filter')?.value || 'all';
+    
     document.querySelectorAll('#keys-sidebar-list li').forEach(li => {
         const name = li.dataset.keyName.toLowerCase();
-        li.style.display = name.includes(query) ? '' : 'none';
+        const status = li.dataset.keyStatus;
+        
+        const matchesName = name.includes(query);
+        const matchesStatus = statusFilter === 'all' || status === statusFilter;
+        
+        li.style.display = (matchesName && matchesStatus) ? '' : 'none';
     });
 }
 
@@ -446,6 +457,7 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('key-form').addEventListener('submit', handleFormSubmit);
     document.getElementById('global-overview-btn-li').addEventListener('click', (e) => { e.preventDefault(); setActiveView(e.currentTarget, displayGlobalOverview); });
     document.getElementById('key-search').addEventListener('keyup', filterKeys);
+    document.getElementById('status-filter')?.addEventListener('change', filterKeys);
     document.getElementById('apply-bulk-action').addEventListener('click', applyBulkAction);
     document.getElementById('keys-sidebar-list').addEventListener('change', updateBulkActionsMenu);
     document.getElementById('import-export-btn').addEventListener('click', openImportExportModal);
