@@ -1,0 +1,14 @@
+version: '3.8'
+
+services:
+  ai-api-middleware:
+    build: .
+    container_name: ai-api-middleware
+    ports:
+      - "5000:5000"
+    volumes:
+      # Mount data directory for persistent storage
+      - ./data:/app/data
+    env_file:
+      - .env
+    restart: unless-stopped
