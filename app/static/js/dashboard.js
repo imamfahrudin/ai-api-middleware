@@ -311,14 +311,43 @@ function updatePieChart(canvasId, title, labels, data) {
     });
 }
 
-function showToast(message, isError = false) {
+function showToast(message, isError = false, type = null) {
     const toast = document.getElementById('toast');
     toast.textContent = message;
-    toast.className = `fixed bottom-8 right-8 text-white py-3 px-6 rounded-lg shadow-xl opacity-0 transform translate-y-4 z-50 ${isError ? 'bg-red-500' : 'bg-green-500'}`;
-    toast.classList.remove('opacity-0', 'translate-y-4');
+    
+    // Determine toast type
+    let toastType = type;
+    if (!toastType) {
+        toastType = isError ? 'error' : 'success';
+    }
+    
+    // Set base classes and add type-specific class
+    toast.className = `fixed bottom-8 right-8 text-white py-3 px-6 rounded-lg shadow-xl z-50 toast-${toastType} slide-in-right show`;
+    
+    // Auto dismiss after 3 seconds
     setTimeout(() => {
+        toast.classList.remove('show', 'slide-in-right');
         toast.classList.add('opacity-0', 'translate-y-4');
     }, 3000);
+}
+
+// Add ripple effect to buttons
+function createRipple(event) {
+    const button = event.currentTarget;
+    const ripple = document.createElement('span');
+    const rect = button.getBoundingClientRect();
+    const size = Math.max(rect.width, rect.height);
+    const x = event.clientX - rect.left - size / 2;
+    const y = event.clientY - rect.top - size / 2;
+    
+    ripple.style.width = ripple.style.height = size + 'px';
+    ripple.style.left = x + 'px';
+    ripple.style.top = y + 'px';
+    ripple.classList.add('ripple');
+    
+    button.appendChild(ripple);
+    
+    setTimeout(() => ripple.remove(), 600);
 }
 
 async function openModal(isEdit = false, id = null, name = '') {
@@ -353,11 +382,30 @@ function closeModal() {
 async function handleFormSubmit(event) {
     event.preventDefault();
     const id = document.getElementById('key-id').value;
-    const name = document.getElementById('key-name').value;
-    const value = document.getElementById('key-value').value;
+    const nameInput = document.getElementById('key-name');
+    const valueInput = document.getElementById('key-value');
+    const name = nameInput.value;
+    const value = valueInput.value;
     const note = document.getElementById('key-note').value;
     const status = document.getElementById('key-status').value;
     const isEdit = !!id;
+    
+    // Basic validation
+    if (!name.trim()) {
+        nameInput.classList.add('shake');
+        showToast('Name is required!', true, 'warning');
+        setTimeout(() => nameInput.classList.remove('shake'), 500);
+        nameInput.focus();
+        return;
+    }
+    
+    if (!isEdit && !value.trim()) {
+        valueInput.classList.add('shake');
+        showToast('Key value is required!', true, 'warning');
+        setTimeout(() => valueInput.classList.remove('shake'), 500);
+        valueInput.focus();
+        return;
+    }
 
     const url = isEdit ? `/middleware/api/keys/${id}` : '/middleware/api/keys';
     const method = isEdit ? 'PUT' : 'POST';
@@ -463,6 +511,36 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('import-export-btn').addEventListener('click', openImportExportModal);
     document.getElementById('export-btn').addEventListener('click', exportKeys);
     document.getElementById('import-btn').addEventListener('click', importKeys);
+    
+    // Add ripple effect to all buttons
+    document.addEventListener('click', (e) => {
+        if (e.target.matches('button:not(:disabled)') || e.target.closest('button:not(:disabled)')) {
+            const button = e.target.matches('button') ? e.target : e.target.closest('button');
+            createRipple(e.target === button ? e : { 
+                currentTarget: button, 
+                clientX: e.clientX, 
+                clientY: e.clientY 
+            });
+        }
+    });
+    
+    // Close modals on escape key
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') {
+            const keyModal = document.getElementById('key-modal');
+            const importModal = document.getElementById('import-export-modal');
+            if (!keyModal.classList.contains('hidden')) closeModal();
+            if (!importModal.classList.contains('hidden')) closeImportExportModal();
+        }
+    });
+    
+    // Close modals on backdrop click
+    document.getElementById('key-modal').addEventListener('click', (e) => {
+        if (e.target.id === 'key-modal') closeModal();
+    });
+    document.getElementById('import-export-modal').addEventListener('click', (e) => {
+        if (e.target.id === 'import-export-modal') closeImportExportModal();
+    });
     
     fetchKeys();
     setActiveView(document.getElementById('global-overview-btn-li'), displayGlobalOverview);

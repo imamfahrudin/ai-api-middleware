@@ -20,6 +20,32 @@
     100% { opacity: 0; transform: scale(0.9); } 
 }
 
+@keyframes slide-in-right {
+    0% { transform: translateX(100%); opacity: 0; }
+    100% { transform: translateX(0); opacity: 1; }
+}
+
+@keyframes scale-in {
+    0% { transform: scale(0.9); opacity: 0; }
+    100% { transform: scale(1); opacity: 1; }
+}
+
+@keyframes ripple {
+    0% { transform: scale(0); opacity: 1; }
+    100% { transform: scale(4); opacity: 0; }
+}
+
+@keyframes shake {
+    0%, 100% { transform: translateX(0); }
+    10%, 30%, 50%, 70%, 90% { transform: translateX(-5px); }
+    20%, 40%, 60%, 80% { transform: translateX(5px); }
+}
+
+@keyframes checkmark {
+    0% { stroke-dashoffset: 50; }
+    100% { stroke-dashoffset: 0; }
+}
+
 /* Animation Classes */
 .status-pulse-healthy { 
     animation: pulse-green 2s infinite; 
@@ -37,6 +63,18 @@
     animation: fade-out 0.3s ease-out forwards; 
 }
 
+.slide-in-right {
+    animation: slide-in-right 0.4s ease-out;
+}
+
+.scale-in {
+    animation: scale-in 0.3s ease-out;
+}
+
+.shake {
+    animation: shake 0.5s ease-in-out;
+}
+
 .health-bar-fill { 
     transition: width 0.5s ease-in-out; 
 }
@@ -48,13 +86,36 @@ body {
     color: #d1d5db;
 }
 
+/* Smooth Transitions for All Interactive Elements */
+* {
+    transition-property: background-color, border-color, color, fill, stroke, opacity, box-shadow, transform;
+    transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+    transition-duration: 150ms;
+}
+
+/* Remove transitions for animations and specific elements */
+*:is(.pulse-once, .fade-out, .slide-in-right, .scale-in, .shake, .status-pulse-healthy, .status-pulse-resting) {
+    transition: none;
+}
+
 /* Sidebar Styles */
 .sidebar { 
     background-color: #1f2937; 
 }
 
+.sidebar-item {
+    transition: all 0.2s ease-in-out;
+}
+
+.sidebar-item:hover {
+    transform: translateX(2px);
+    background-color: #374151 !important;
+}
+
 .sidebar-item.active { 
-    background-color: #374151; 
+    background-color: #374151;
+    border-left: 3px solid #3b82f6;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3);
 }
 
 /* Glass Card Effect */
@@ -64,9 +125,188 @@ body {
     -webkit-backdrop-filter: blur(10px);
     border: 1px solid rgba(255, 255, 255, 0.1);
     border-radius: 0.75rem;
+    transition: all 0.3s ease;
+}
+
+.glass-card:hover {
+    border-color: rgba(255, 255, 255, 0.2);
+    box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.3);
+    transform: translateY(-2px);
+}
+
+/* Button Styles */
+button, a.block {
+    position: relative;
+    overflow: hidden;
+    transition: all 0.3s ease;
+}
+
+button:hover:not(:disabled), a.block:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 10px 20px -5px rgba(0, 0, 0, 0.4);
+}
+
+button:active:not(:disabled), a.block:active {
+    transform: translateY(0);
+}
+
+button:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+/* Ripple Effect */
+.ripple {
+    position: absolute;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.3);
+    pointer-events: none;
+    animation: ripple 0.6s ease-out;
+}
+
+/* Input Styles */
+input, select, textarea {
+    transition: all 0.3s ease;
+}
+
+input:focus, select:focus, textarea:focus {
+    outline: none;
+    border-color: #3b82f6 !important;
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.3), 0 0 15px rgba(59, 130, 246, 0.2);
+    transform: translateY(-1px);
+}
+
+input:invalid:not(:focus), textarea:invalid:not(:focus) {
+    border-color: #ef4444;
+}
+
+/* Search Input Clear Button */
+input[type="search"]::-webkit-search-cancel-button {
+    -webkit-appearance: none;
+    appearance: none;
+    height: 16px;
+    width: 16px;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%239ca3af'%3E%3Cpath d='M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z'/%3E%3C/svg%3E");
+    cursor: pointer;
 }
 
 /* Toast Notification */
 #toast { 
-    transition: opacity 0.5s, transform 0.5s; 
+    transition: opacity 0.5s, transform 0.5s;
+    border-radius: 0.75rem;
+    box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.5), 0 10px 10px -5px rgba(0, 0, 0, 0.4);
+}
+
+#toast.show {
+    opacity: 1 !important;
+    transform: translateY(0) !important;
+}
+
+/* Toast Variants */
+.toast-success {
+    background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+}
+
+.toast-error {
+    background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+}
+
+.toast-warning {
+    background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+}
+
+.toast-info {
+    background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+}
+
+/* Modal Enhancements */
+.fixed.inset-0 {
+    animation: scale-in 0.3s ease-out;
+}
+
+.fixed.inset-0.bg-black {
+    backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: blur(4px);
+}
+
+/* Status Badge Enhancements */
+.px-2.py-1.text-xs {
+    font-weight: 600;
+    letter-spacing: 0.025em;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+}
+
+/* Loading Skeleton */
+.skeleton {
+    background: linear-gradient(90deg, #374151 25%, #4b5563 50%, #374151 75%);
+    background-size: 200% 100%;
+    animation: loading 1.5s ease-in-out infinite;
+}
+
+@keyframes loading {
+    0% { background-position: 200% 0; }
+    100% { background-position: -200% 0; }
+}
+
+/* Checkbox Enhancements */
+input[type="checkbox"] {
+    cursor: pointer;
+    width: 18px;
+    height: 18px;
+    accent-color: #3b82f6;
+}
+
+input[type="checkbox"]:hover {
+    transform: scale(1.1);
+}
+
+/* Stat Card Enhancements */
+.glass-card > .text-2xl {
+    font-weight: 700;
+    letter-spacing: -0.025em;
+}
+
+.glass-card > .text-gray-400 {
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    font-size: 0.75rem;
+}
+
+/* Custom Scrollbar Styles */
+/* For Webkit browsers (Chrome, Safari, Edge) */
+::-webkit-scrollbar {
+    width: 12px;
+    height: 12px;
+}
+
+::-webkit-scrollbar-track {
+    background: #1f2937;
+    border-radius: 10px;
+    margin: 2px;
+}
+
+::-webkit-scrollbar-thumb {
+    background: linear-gradient(180deg, #4b5563 0%, #374151 100%);
+    border-radius: 10px;
+    border: 2px solid #1f2937;
+    transition: background 0.3s ease;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: linear-gradient(180deg, #6b7280 0%, #4b5563 100%);
+}
+
+::-webkit-scrollbar-thumb:active {
+    background: linear-gradient(180deg, #9ca3af 0%, #6b7280 100%);
+}
+
+::-webkit-scrollbar-corner {
+    background: #1f2937;
+}
+
+/* For Firefox */
+* {
+    scrollbar-width: thin;
+    scrollbar-color: #4b5563 #1f2937;
 }
