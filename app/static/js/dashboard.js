@@ -126,10 +126,10 @@ async function displayGlobalOverview() {
             <div class="glass-card p-4"><canvas id="errorTypeChart"></canvas></div>
         </div>
         <div class="grid grid-cols-1">
-            <div class="glass-card p-4 h-48 overflow-y-scroll font-mono text-sm"><h3 class="text-lg font-bold mb-2">Live Mission Feed</h3><ul id="live-log-list"></ul></div>
+            <div id="live-log-container" class="glass-card p-4 h-48 overflow-y-scroll font-mono text-sm"><h3 class="text-lg font-bold mb-2">Live Mission Feed</h3><ul id="live-log-list"></ul></div>
         </div>`;
     
-    const logContainer = document.querySelector('.glass-card.p-4.h-48'); // More specific selector
+    const logContainer = document.getElementById('live-log-container');
     if(logContainer) {
         logContainer.addEventListener('mouseenter', () => globalState.isLogHovered = true);
         logContainer.addEventListener('mouseleave', () => globalState.isLogHovered = false);
@@ -222,7 +222,10 @@ async function fetchLogs() {
     logList.innerHTML = logs.map(log => `<li><span class="text-gray-500">${new Date(log.time).toLocaleTimeString()}</span> <span class="${log.color}">${log.msg}</span></li>`).join('');
 
     if(!globalState.isLogHovered) {
-        logList.scrollTop = logList.scrollHeight;
+        const logContainer = document.getElementById('live-log-container');
+        if(logContainer) {
+            logContainer.scrollTop = logContainer.scrollHeight;
+        }
     }
 }
 
