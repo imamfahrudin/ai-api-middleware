@@ -10,6 +10,19 @@ const CHART_COLORS = {
     grey: 'rgb(107, 114, 128)'
 };
 
+// Debounce utility function
+function debounce(func, wait) {
+    let timeout;
+    return function executedFunction(...args) {
+        const later = () => {
+            clearTimeout(timeout);
+            func(...args);
+        };
+        clearTimeout(timeout);
+        timeout = setTimeout(later, wait);
+    };
+}
+
 function getStatusBadge(status) {
     const colors = { Healthy: 'bg-green-600', Resting: 'bg-yellow-600', Disabled: 'bg-red-600' };
     const pulseClass = status === 'Healthy' ? 'status-pulse-healthy' : (status === 'Resting' ? 'status-pulse-resting' : '');
@@ -504,7 +517,7 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('add-new-key-btn').addEventListener('click', () => openModal());
     document.getElementById('key-form').addEventListener('submit', handleFormSubmit);
     document.getElementById('global-overview-btn-li').addEventListener('click', (e) => { e.preventDefault(); setActiveView(e.currentTarget, displayGlobalOverview); });
-    document.getElementById('key-search').addEventListener('keyup', filterKeys);
+    document.getElementById('key-search').addEventListener('keyup', debounce(filterKeys, 300));
     document.getElementById('status-filter')?.addEventListener('change', filterKeys);
     document.getElementById('apply-bulk-action').addEventListener('click', applyBulkAction);
     document.getElementById('keys-sidebar-list').addEventListener('change', updateBulkActionsMenu);
@@ -550,7 +563,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (document.querySelector('.sidebar-item.active')?.id === 'global-overview-btn-li') {
             await updateGlobalData();
         }
-    }, 5000);
-    setInterval(fetchLogs, 2000);
+    }, 15000);
+    setInterval(fetchLogs, 5000);
     setInterval(updateClock, 1000);
 });

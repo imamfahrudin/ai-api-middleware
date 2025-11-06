@@ -4,6 +4,7 @@ import sqlite3
 import threading
 import datetime
 import json
+import time
 
 class KeyManager:
     """A thread-safe class to manage API keys with advanced, historical tracking and self-healing capabilities."""
@@ -13,8 +14,32 @@ class KeyManager:
         os.makedirs(os.path.dirname(db_path), exist_ok=True)
         self.conn = sqlite3.connect(db_path, check_same_thread=False)
         self.conn.row_factory = sqlite3.Row
+        # Add caching for expensive operations
+        self._cache = {}
+        self._cache_ttl = 10  # 10 second TTL
         self._initialize_db()
         self._migrate_from_env()
+
+    def _get_cached(self, key, compute_func, *args, **kwargs):
+        """Get cached result or compute and cache it."""
+        now = time.time()
+        if key in self._cache:
+            cached_time, cached_result = self._cache[key]
+            if now - cached_time < self._cache_ttl:
+                return cached_result
+        
+        result = compute_func(*args, **kwargs)
+        self._cache[key] = (now, result)
+        return result
+
+    def _invalidate_cache(self, key_prefix=None):
+        """Invalidate cache entries, optionally by prefix."""
+        if key_prefix:
+            keys_to_remove = [k for k in self._cache.keys() if k.startswith(key_prefix)]
+            for k in keys_to_remove:
+                del self._cache[k]
+        else:
+            self._cache.clear()
 
     def _initialize_db(self):
         with self.lock:
@@ -92,6 +117,10 @@ class KeyManager:
 
     def get_all_keys_with_kpi(self):
         """Calculates a Key Performance Index (KPI) for each key."""
+        return self._get_cached('keys_with_kpi', self._compute_keys_with_kpi)
+
+    def _compute_keys_with_kpi(self):
+        """Internal method to compute keys with KPI (cached)."""
         keys = self.get_all_keys_from_db()
         today_str = datetime.date.today().isoformat()
         
@@ -121,6 +150,7 @@ class KeyManager:
                 cursor = self.conn.cursor()
                 cursor.execute("INSERT INTO keys (key_value, name, note) VALUES (?, ?, ?)", (key_value, key_name, note))
                 self.conn.commit()
+                self._invalidate_cache()  # Invalidate cache after adding key
                 return True, "Key added."
             except sqlite3.IntegrityError: return False, "Key exists."
 
@@ -147,6 +177,7 @@ class KeyManager:
                 cursor = self.conn.cursor()
                 cursor.execute(f"UPDATE keys SET {', '.join(updates)} WHERE id = ?", tuple(params))
                 self.conn.commit()
+                self._invalidate_cache()  # Invalidate cache after updating key
                 return True, "Key updated."
             except sqlite3.IntegrityError: return False, "Update failed."
 
@@ -155,6 +186,7 @@ class KeyManager:
             cursor = self.conn.cursor()
             cursor.execute("DELETE FROM keys WHERE id = ?", (key_id,))
             self.conn.commit()
+            self._invalidate_cache()  # Invalidate cache after removing key
             return cursor.rowcount > 0
 
     def bulk_update_status(self, key_ids, status):
@@ -170,6 +202,7 @@ class KeyManager:
                 else:
                     cursor.execute(f"UPDATE keys SET status = ?, disabled_until = NULL WHERE id IN ({placeholders})", (status, *key_ids))
                 self.conn.commit()
+                self._invalidate_cache()  # Invalidate cache after bulk update
                 return True, f"{cursor.rowcount} keys updated to {status}."
             except sqlite3.Error as e:
                 return False, f"Database error: {e}"
@@ -210,6 +243,7 @@ class KeyManager:
                 except sqlite3.IntegrityError:
                     skipped_count += 1
             self.conn.commit()
+            self._invalidate_cache()  # Invalidate cache after bulk import
         return imported_count, skipped_count, "Import complete."
 
 
@@ -220,7 +254,11 @@ class KeyManager:
             cursor.execute("SELECT * FROM daily_stats WHERE key_id = ? AND date >= ? ORDER BY date ASC", (key_id, date_limit))
             return [dict(row) for row in cursor.fetchall()]
 
-    def get_global_stats(self, days=30):
+    def get_global_stats(self, days=7):
+        return self._get_cached('global_stats', self._compute_global_stats, days)
+
+    def _compute_global_stats(self, days=7):
+        """Internal method to compute global stats (cached)."""
         with self.lock:
             cursor = self.conn.cursor()
             date_limit = (datetime.date.today() - datetime.timedelta(days=days)).isoformat()
