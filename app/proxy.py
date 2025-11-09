@@ -306,7 +306,7 @@ def proxy(path):
     request_params = request.args
     
     # Retry logic with automatic failover
-    max_retries = 1
+    max_retries = 3
     tried_key_ids = []
     
     for attempt in range(max_retries + 1):
