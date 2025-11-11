@@ -596,8 +596,20 @@ function updatePieChart(canvasId, title, labels, data) {
     if (!ctx) return;
 
     const textColor = '#e5e7eb';
-    const colorValues = Object.values(CHART_COLORS);
-    const colors = labels.map((_, i) => colorValues[i % colorValues.length]);
+    
+    // Special color mapping for different chart types
+    let colors;
+    if (canvasId === 'metrics-errors-chart') {
+        // Use red/orange tones for error types
+        colors = labels.map((_, i) => {
+            const errorColors = [CHART_COLORS.red, CHART_COLORS.orange, CHART_COLORS.yellow];
+            return errorColors[i % errorColors.length];
+        });
+    } else {
+        // Default color cycling for other charts
+        const colorValues = Object.values(CHART_COLORS);
+        colors = labels.map((_, i) => colorValues[i % colorValues.length]);
+    }
 
     if (metricsCharts[canvasId]) {
         metricsCharts[canvasId].data.labels = labels;
