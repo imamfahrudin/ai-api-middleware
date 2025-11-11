@@ -366,10 +366,14 @@ class KeyManager:
             cursor.execute("SELECT status, COUNT(*) as count FROM keys GROUP BY status")
             health_status = {row['status']: row['count'] for row in cursor.fetchall()}
             
-            # New logic for stacked bar chart data
-            cursor.execute("SELECT k.name, ds.model_usage FROM daily_stats ds JOIN keys k ON ds.key_id = k.id WHERE ds.date = ?", (today_str,))
+            # New logic for stacked bar chart data - use most recent date with data
+            cursor.execute("SELECT MAX(date) as latest_date FROM daily_stats")
+            latest_date_row = cursor.fetchone()
+            latest_date = latest_date_row['latest_date'] if latest_date_row else today_str
+            cursor.execute("SELECT k.name, ds.model_usage FROM daily_stats ds JOIN keys k ON ds.key_id = k.id WHERE ds.date = ?", (latest_date,))
+            rows = cursor.fetchall()
             request_distribution = []
-            for row in cursor.fetchall():
+            for row in rows:
                 request_distribution.append({
                     "name": row['name'],
                     "usage": json.loads(row['model_usage'])
