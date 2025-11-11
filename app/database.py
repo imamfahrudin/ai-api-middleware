@@ -99,10 +99,115 @@ class KeyManager:
                 )
             """)
 
+            # --- Create MCP Tables ---
+            self._initialize_mcp_tables(cursor)
+
             # Note: Default settings are handled by ensure_default_settings() method
             # This ensures consistency between initialization and runtime checks
 
             self.conn.commit()
+
+    def _initialize_mcp_tables(self, cursor):
+        """Initialize MCP-related database tables"""
+
+        # MCP Servers table
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS mcp_servers (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                name TEXT UNIQUE NOT NULL,
+                url TEXT NOT NULL,
+                auth_type TEXT CHECK(auth_type IN ('none', 'bearer', 'api_key', 'oauth')) DEFAULT 'none',
+                auth_credentials TEXT,
+                status TEXT CHECK(status IN ('Active', 'Inactive', 'Error')) DEFAULT 'Active',
+                health_check_url TEXT,
+                health_check_interval INTEGER DEFAULT 300,
+                last_health_check TIMESTAMP,
+                connection_timeout INTEGER DEFAULT 30,
+                max_concurrent_calls INTEGER DEFAULT 10,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        """)
+
+        # MCP Tools table
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS mcp_tools (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                server_id INTEGER NOT NULL,
+                tool_name TEXT NOT NULL,
+                tool_schema TEXT,
+                description TEXT,
+                capabilities TEXT,
+                category TEXT,
+                is_active BOOLEAN DEFAULT TRUE,
+                cache_duration INTEGER DEFAULT 300,
+                cached_until TIMESTAMP,
+                last_updated TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (server_id) REFERENCES mcp_servers (id) ON DELETE CASCADE,
+                UNIQUE(server_id, tool_name)
+            )
+        """)
+
+        # MCP Sessions table
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS mcp_sessions (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                session_id TEXT UNIQUE NOT NULL,
+                user_context TEXT,
+                active_servers TEXT,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                last_activity TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                expires_at TIMESTAMP
+            )
+        """)
+
+        # MCP Tool Call History
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS mcp_tool_calls (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                session_id TEXT,
+                server_id INTEGER NOT NULL,
+                tool_name TEXT NOT NULL,
+                arguments TEXT,
+                result TEXT,
+                success BOOLEAN NOT NULL,
+                error_message TEXT,
+                response_time INTEGER,
+                token_usage INTEGER,
+                timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (server_id) REFERENCES mcp_servers (id)
+            )
+        """)
+
+        # MCP Usage Statistics
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS mcp_usage_stats (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                server_id INTEGER NOT NULL,
+                tool_name TEXT NOT NULL,
+                usage_date DATE NOT NULL,
+                total_calls INTEGER DEFAULT 0,
+                successful_calls INTEGER DEFAULT 0,
+                failed_calls INTEGER DEFAULT 0,
+                avg_response_time REAL,
+                total_tokens INTEGER DEFAULT 0,
+                FOREIGN KEY (server_id) REFERENCES mcp_servers (id),
+                UNIQUE(server_id, tool_name, usage_date)
+            )
+        """)
+
+        # MCP Server Health History
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS mcp_health_history (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                server_id INTEGER NOT NULL,
+                status TEXT NOT NULL,
+                response_time INTEGER,
+                error_message TEXT,
+                timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (server_id) REFERENCES mcp_servers (id)
+            )
+        """)
 
     def _migrate_from_env(self):
         with self.lock:
@@ -440,6 +545,258 @@ class KeyManager:
                 """, (key, str(value)))
             self.conn.commit()
 
+    # MCP Server Management Methods
+    def add_mcp_server(self, name, url, auth_type='none', auth_credentials=None, status='Active'):
+        """Add a new MCP server to the database."""
+        with self.lock:
+            cursor = self.conn.cursor()
+            try:
+                cursor.execute("""
+                    INSERT INTO mcp_servers (name, url, auth_type, auth_credentials, status, updated_at)
+                    VALUES (?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+                """, (name, url, auth_type, json.dumps(auth_credentials) if auth_credentials else None, status))
+                self.conn.commit()
+                return cursor.lastrowid
+            except sqlite3.IntegrityError as e:
+                if 'UNIQUE constraint failed: mcp_servers.name' in str(e):
+                    raise ValueError(f"MCP server with name '{name}' already exists")
+                raise
+
+    def get_mcp_servers(self, status_filter=None):
+        """Get all MCP servers, optionally filtered by status."""
+        with self.lock:
+            cursor = self.conn.cursor()
+            if status_filter:
+                cursor.execute("SELECT * FROM mcp_servers WHERE status = ? ORDER BY name", (status_filter,))
+            else:
+                cursor.execute("SELECT * FROM mcp_servers ORDER BY name")
+
+            servers = []
+            for row in cursor.fetchall():
+                server = dict(row)
+                if server['auth_credentials']:
+                    server['auth_credentials'] = json.loads(server['auth_credentials'])
+                servers.append(server)
+            return servers
+
+    def get_mcp_server(self, server_id):
+        """Get a specific MCP server by ID."""
+        with self.lock:
+            cursor = self.conn.cursor()
+            cursor.execute("SELECT * FROM mcp_servers WHERE id = ?", (server_id,))
+            row = cursor.fetchone()
+            if row:
+                server = dict(row)
+                if server['auth_credentials']:
+                    server['auth_credentials'] = json.loads(server['auth_credentials'])
+                return server
+            return None
+
+    def update_mcp_server(self, server_id, **kwargs):
+        """Update MCP server properties."""
+        if not kwargs:
+            return
+
+        with self.lock:
+            cursor = self.conn.cursor()
+
+            # Prepare update fields
+            update_fields = []
+            update_params = []
+
+            for key, value in kwargs.items():
+                if key in ['name', 'url', 'auth_type', 'status', 'health_check_url',
+                          'health_check_interval', 'connection_timeout', 'max_concurrent_calls']:
+                    update_fields.append(f"{key} = ?")
+                    if key == 'auth_credentials' and value:
+                        update_params.append(json.dumps(value))
+                    else:
+                        update_params.append(value)
+
+            if update_fields:
+                update_fields.append("updated_at = CURRENT_TIMESTAMP")
+                update_params.append(server_id)
+
+                cursor.execute(f"""
+                    UPDATE mcp_servers
+                    SET {', '.join(update_fields)}
+                    WHERE id = ?
+                """, tuple(update_params))
+                self.conn.commit()
+
+    def delete_mcp_server(self, server_id):
+        """Delete an MCP server and all associated data."""
+        with self.lock:
+            cursor = self.conn.cursor()
+            cursor.execute("DELETE FROM mcp_servers WHERE id = ?", (server_id,))
+            self.conn.commit()
+
+    # MCP Tools Management
+    def update_mcp_tools(self, server_id, tools):
+        """Update tools for an MCP server."""
+        with self.lock:
+            cursor = self.conn.cursor()
+
+            # Clear existing tools for this server
+            cursor.execute("DELETE FROM mcp_tools WHERE server_id = ?", (server_id,))
+
+            # Insert new tools
+            for tool in tools:
+                cursor.execute("""
+                    INSERT INTO mcp_tools (
+                        server_id, tool_name, tool_schema, description,
+                        capabilities, category, updated_at
+                    ) VALUES (?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+                """, (
+                    server_id,
+                    tool.get('name'),
+                    json.dumps(tool.get('schema')),
+                    tool.get('description'),
+                    json.dumps(tool.get('capabilities', [])),
+                    tool.get('category')
+                ))
+
+            self.conn.commit()
+
+    def get_mcp_tools(self, server_id=None, active_only=True):
+        """Get MCP tools, optionally filtered by server."""
+        with self.lock:
+            cursor = self.conn.cursor()
+
+            if server_id:
+                if active_only:
+                    cursor.execute("""
+                        SELECT t.*, s.name as server_name
+                        FROM mcp_tools t
+                        JOIN mcp_servers s ON t.server_id = s.id
+                        WHERE t.server_id = ? AND t.is_active = TRUE
+                        ORDER BY t.tool_name
+                    """, (server_id,))
+                else:
+                    cursor.execute("""
+                        SELECT t.*, s.name as server_name
+                        FROM mcp_tools t
+                        JOIN mcp_servers s ON t.server_id = s.id
+                        WHERE t.server_id = ?
+                        ORDER BY t.tool_name
+                    """, (server_id,))
+            else:
+                if active_only:
+                    cursor.execute("""
+                        SELECT t.*, s.name as server_name
+                        FROM mcp_tools t
+                        JOIN mcp_servers s ON t.server_id = s.id
+                        WHERE t.is_active = TRUE AND s.status = 'Active'
+                        ORDER BY s.name, t.tool_name
+                    """)
+                else:
+                    cursor.execute("""
+                        SELECT t.*, s.name as server_name
+                        FROM mcp_tools t
+                        JOIN mcp_servers s ON t.server_id = s.id
+                        ORDER BY s.name, t.tool_name
+                    """)
+
+            tools = []
+            for row in cursor.fetchall():
+                tool = dict(row)
+                if tool['tool_schema']:
+                    tool['tool_schema'] = json.loads(tool['tool_schema'])
+                if tool['capabilities']:
+                    tool['capabilities'] = json.loads(tool['capabilities'])
+                tools.append(tool)
+
+            return tools
+
+    # MCP Usage Statistics
+    def record_mcp_tool_call(self, server_id, tool_name, arguments, result,
+                           success, error_message=None, response_time=None,
+                           token_usage=None, session_id=None):
+        """Record a tool call in the database."""
+        with self.lock:
+            cursor = self.conn.cursor()
+
+            # Record the tool call
+            cursor.execute("""
+                INSERT INTO mcp_tool_calls (
+                    session_id, server_id, tool_name, arguments, result,
+                    success, error_message, response_time, token_usage
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """, (
+                session_id, server_id, tool_name, json.dumps(arguments),
+                json.dumps(result) if result else None, success, error_message,
+                response_time, token_usage
+            ))
+
+            # Update usage statistics
+            today = datetime.date.today().isoformat()
+            cursor.execute("""
+                INSERT INTO mcp_usage_stats (
+                    server_id, tool_name, usage_date, total_calls, successful_calls, failed_calls
+                ) VALUES (?, ?, ?, 1, ?, ?)
+                ON CONFLICT(server_id, tool_name, usage_date) DO UPDATE SET
+                total_calls = total_calls + 1,
+                successful_calls = successful_calls + ?,
+                failed_calls = failed_calls + ?,
+                avg_response_time = (
+                    (avg_response_time * total_calls) + ?
+                ) / (total_calls + 1)
+            """, (
+                server_id, tool_name, today,
+                1 if success else 0, 0 if success else 1,
+                1 if success else 0, 0 if success else 1,
+                response_time or 0
+            ))
+
+            self.conn.commit()
+
+    def get_mcp_usage_stats(self, server_id=None, days=7):
+        """Get MCP usage statistics for the last N days."""
+        with self.lock:
+            cursor = self.conn.cursor()
+
+            start_date = (datetime.date.today() - datetime.timedelta(days=days)).isoformat()
+
+            if server_id:
+                cursor.execute("""
+                    SELECT us.*, s.name as server_name, t.description as tool_description
+                    FROM mcp_usage_stats us
+                    JOIN mcp_servers s ON us.server_id = s.id
+                    LEFT JOIN mcp_tools t ON us.server_id = t.server_id AND us.tool_name = t.tool_name
+                    WHERE us.server_id = ? AND us.usage_date >= ?
+                    ORDER BY us.usage_date DESC, us.total_calls DESC
+                """, (server_id, start_date))
+            else:
+                cursor.execute("""
+                    SELECT us.*, s.name as server_name, t.description as tool_description
+                    FROM mcp_usage_stats us
+                    JOIN mcp_servers s ON us.server_id = s.id
+                    LEFT JOIN mcp_tools t ON us.server_id = t.server_id AND us.tool_name = t.tool_name
+                    WHERE us.usage_date >= ?
+                    ORDER BY us.usage_date DESC, us.total_calls DESC
+                """, (start_date,))
+
+            return [dict(row) for row in cursor.fetchall()]
+
+    def record_mcp_health_check(self, server_id, status, response_time=None, error_message=None):
+        """Record MCP server health check result."""
+        with self.lock:
+            cursor = self.conn.cursor()
+
+            cursor.execute("""
+                INSERT INTO mcp_health_history (server_id, status, response_time, error_message)
+                VALUES (?, ?, ?, ?)
+            """, (server_id, status, response_time, error_message))
+
+            # Update server's last health check
+            cursor.execute("""
+                UPDATE mcp_servers
+                SET last_health_check = CURRENT_TIMESTAMP
+                WHERE id = ?
+            """, (server_id,))
+
+            self.conn.commit()
+
     def ensure_default_settings(self):
         """Ensure all required default settings exist in the database."""
         default_settings = {
@@ -484,7 +841,18 @@ class KeyManager:
             'max_concurrent_requests': '100',
             'keepalive_timeout': '30',
             'enable_graceful_shutdown': 'true',
-            'cache_max_age': '300'
+            'cache_max_age': '300',
+
+            # MCP (Model Context Protocol) Settings
+            'mcp_enabled': 'false',
+            'mcp_auto_detect_tools': 'true',
+            'mcp_cache_duration': '300',
+            'mcp_max_concurrent_tools': '5',
+            'mcp_timeout': '30',
+            'mcp_enable_health_checks': 'true',
+            'mcp_health_check_interval': '300',
+            'mcp_enable_usage_tracking': 'true',
+            'mcp_enable_tool_caching': 'true'
         }
 
         with self.lock:

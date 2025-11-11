@@ -354,6 +354,106 @@
                 </div>
             </div>
 
+            <!-- MCP (Model Context Protocol) Settings -->
+            <div class="bg-gray-800 rounded-lg p-6 mb-6">
+                <h2 class="text-xl font-semibold text-white mb-4 flex items-center gap-2">
+                    <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 3v2m6-2v2M9 19v2m6-2v2M5 9H3m2 6H3m18-6h-2m2 6h-2M7 19h10a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v10a2 2 0 002 2zM9 9h6v6H9V9z" />
+                    </svg>
+                    MCP (Model Context Protocol) Settings
+                </h2>
+
+                <div class="space-y-4">
+                    <!-- Enable MCP -->
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <h3 class="text-white font-medium">Enable MCP Client</h3>
+                            <p class="text-gray-400 text-sm">Enable Model Context Protocol functionality for accessing external tools</p>
+                        </div>
+                        <label class="relative inline-flex items-center cursor-pointer">
+                            <input type="checkbox" id="mcp-enabled-toggle" class="sr-only peer">
+                            <div class="w-11 h-6 bg-gray-600 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                        </label>
+                    </div>
+
+                    <!-- Auto-detect Tools -->
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <h3 class="text-white font-medium">Auto-detect Tool Requirements</h3>
+                            <p class="text-gray-400 text-sm">Automatically detect when requests need MCP tools</p>
+                        </div>
+                        <label class="relative inline-flex items-center cursor-pointer">
+                            <input type="checkbox" id="mcp-auto-detect-tools-toggle" class="sr-only peer" checked>
+                            <div class="w-11 h-6 bg-gray-600 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                        </label>
+                    </div>
+
+                    <!-- MCP Cache Duration -->
+                    <div>
+                        <h3 class="text-white font-medium mb-2">Tool Results Cache Duration (seconds)</h3>
+                        <p class="text-gray-400 text-sm mb-3">How long to cache MCP tool results</p>
+                        <input type="number" id="mcp-cache-duration-input" class="w-full bg-gray-700 text-white rounded-md p-2 border border-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500" value="300" min="0" max="3600">
+                    </div>
+
+                    <!-- Max Concurrent Tools -->
+                    <div>
+                        <h3 class="text-white font-medium mb-2">Max Concurrent Tool Calls</h3>
+                        <p class="text-gray-400 text-sm mb-3">Maximum number of MCP tools that can run simultaneously</p>
+                        <input type="number" id="mcp-max-concurrent-tools-input" class="w-full bg-gray-700 text-white rounded-md p-2 border border-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500" value="5" min="1" max="20">
+                    </div>
+
+                    <!-- MCP Timeout -->
+                    <div>
+                        <h3 class="text-white font-medium mb-2">MCP Tool Call Timeout (seconds)</h3>
+                        <p class="text-gray-400 text-sm mb-3">Maximum time to wait for MCP tool responses</p>
+                        <input type="number" id="mcp-timeout-input" class="w-full bg-gray-700 text-white rounded-md p-2 border border-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500" value="30" min="5" max="300">
+                    </div>
+
+                    <!-- MCP Health Checks -->
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <h3 class="text-white font-medium">Enable MCP Health Checks</h3>
+                            <p class="text-gray-400 text-sm">Monitor MCP server health and availability</p>
+                        </div>
+                        <label class="relative inline-flex items-center cursor-pointer">
+                            <input type="checkbox" id="mcp-enable-health-checks-toggle" class="sr-only peer" checked>
+                            <div class="w-11 h-6 bg-gray-600 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                        </label>
+                    </div>
+
+                    <!-- MCP Health Check Interval -->
+                    <div>
+                        <h3 class="text-white font-medium mb-2">Health Check Interval (seconds)</h3>
+                        <p class="text-gray-400 text-sm mb-3">How often to check MCP server health</p>
+                        <input type="number" id="mcp-health-check-interval-input" class="w-full bg-gray-700 text-white rounded-md p-2 border border-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500" value="300" min="30" max="3600">
+                    </div>
+
+                    <!-- MCP Usage Tracking -->
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <h3 class="text-white font-medium">Enable MCP Usage Tracking</h3>
+                            <p class="text-gray-400 text-sm">Track MCP tool usage statistics and performance</p>
+                        </div>
+                        <label class="relative inline-flex items-center cursor-pointer">
+                            <input type="checkbox" id="mcp-enable-usage-tracking-toggle" class="sr-only peer" checked>
+                            <div class="w-11 h-6 bg-gray-600 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                        </label>
+                    </div>
+
+                    <!-- MCP Tool Caching -->
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <h3 class="text-white font-medium">Enable MCP Tool Caching</h3>
+                            <p class="text-gray-400 text-sm">Cache MCP tool definitions and capabilities</p>
+                        </div>
+                        <label class="relative inline-flex items-center cursor-pointer">
+                            <input type="checkbox" id="mcp-enable-tool-caching-toggle" class="sr-only peer" checked>
+                            <div class="w-11 h-6 bg-gray-600 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                        </label>
+                    </div>
+                </div>
+            </div>
+
             <!-- Actions -->
             <div class="flex gap-4">
                 <button id="save-settings-btn" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-6 rounded">
@@ -413,7 +513,18 @@
             max_concurrent_requests: 100,
             keepalive_timeout: 30,
             enable_graceful_shutdown: true,
-            cache_max_age: 300
+            cache_max_age: 300,
+
+            // MCP (Model Context Protocol) Settings
+            mcp_enabled: false,
+            mcp_auto_detect_tools: true,
+            mcp_cache_duration: 300,
+            mcp_max_concurrent_tools: 5,
+            mcp_timeout: 30,
+            mcp_enable_health_checks: true,
+            mcp_health_check_interval: 300,
+            mcp_enable_usage_tracking: true,
+            mcp_enable_tool_caching: true
         };
 
         // Load settings from localStorage and server
@@ -471,6 +582,17 @@
             document.getElementById('buffer-size-input').value = currentSettings.buffer_size;
             document.getElementById('max-concurrent-requests-input').value = currentSettings.max_concurrent_requests;
             document.getElementById('enable-request-id-injection-toggle').checked = currentSettings.enable_request_id_injection;
+
+            // MCP (Model Context Protocol) Settings
+            document.getElementById('mcp-enabled-toggle').checked = currentSettings.mcp_enabled;
+            document.getElementById('mcp-auto-detect-tools-toggle').checked = currentSettings.mcp_auto_detect_tools;
+            document.getElementById('mcp-cache-duration-input').value = currentSettings.mcp_cache_duration;
+            document.getElementById('mcp-max-concurrent-tools-input').value = currentSettings.mcp_max_concurrent_tools;
+            document.getElementById('mcp-timeout-input').value = currentSettings.mcp_timeout;
+            document.getElementById('mcp-enable-health-checks-toggle').checked = currentSettings.mcp_enable_health_checks;
+            document.getElementById('mcp-health-check-interval-input').value = currentSettings.mcp_health_check_interval;
+            document.getElementById('mcp-enable-usage-tracking-toggle').checked = currentSettings.mcp_enable_usage_tracking;
+            document.getElementById('mcp-enable-tool-caching-toggle').checked = currentSettings.mcp_enable_tool_caching;
         }
 
         // Save settings to localStorage and API
@@ -507,7 +629,18 @@
                 failover_strategy: document.getElementById('failover-strategy-select').value,
                 buffer_size: parseInt(document.getElementById('buffer-size-input').value),
                 max_concurrent_requests: parseInt(document.getElementById('max-concurrent-requests-input').value),
-                enable_request_id_injection: document.getElementById('enable-request-id-injection-toggle').checked
+                enable_request_id_injection: document.getElementById('enable-request-id-injection-toggle').checked,
+
+                // MCP (Model Context Protocol) Settings
+                mcp_enabled: document.getElementById('mcp-enabled-toggle').checked,
+                mcp_auto_detect_tools: document.getElementById('mcp-auto-detect-tools-toggle').checked,
+                mcp_cache_duration: parseInt(document.getElementById('mcp-cache-duration-input').value),
+                mcp_max_concurrent_tools: parseInt(document.getElementById('mcp-max-concurrent-tools-input').value),
+                mcp_timeout: parseInt(document.getElementById('mcp-timeout-input').value),
+                mcp_enable_health_checks: document.getElementById('mcp-enable-health-checks-toggle').checked,
+                mcp_health_check_interval: parseInt(document.getElementById('mcp-health-check-interval-input').value),
+                mcp_enable_usage_tracking: document.getElementById('mcp-enable-usage-tracking-toggle').checked,
+                mcp_enable_tool_caching: document.getElementById('mcp-enable-tool-caching-toggle').checked
             };
 
             // Save to localStorage

@@ -2,14 +2,17 @@ import time
 import json
 import requests
 import uuid
+import asyncio
+from typing import Optional, Union, List, Dict, Any
 from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
-from flask import request, jsonify, Response, Blueprint
+from flask import request, jsonify, Response, Blueprint, g
 from functools import lru_cache
 import io
 
 from app.database import KeyManager
 from app.logging_utils import add_log_entry
+from app.mcp_integration import get_mcp_integration, process_request_with_mcp_integration
 
 proxy_bp = Blueprint('proxy', __name__)
 key_manager = KeyManager()
@@ -378,10 +381,96 @@ def proxy(path):
         elif path_to_proxy.endswith('/models'):
             model_name = "model-discovery"
 
-    add_log_entry(f"Incoming {provider_format.upper()}-format request for model: {model_name}...")
-    
-    # Cache request data for potential retries
+    # Cache request data for potential reuse
     request_data = request.get_data()
+
+    add_log_entry(f"Incoming {provider_format.upper()}-format request for model: {model_name}...")
+
+    # --- MCP Integration Check ---
+    # Extract user request text for MCP analysis
+    user_request_text = _extract_user_request_text(request_data, provider_format)
+
+    # Extract session ID from headers or create new one
+    session_id = request.headers.get('X-MCP-Session-ID')
+    request_id = getattr(g, 'request_id', None)
+
+    # Check if MCP tools should be used (only for content generation requests)
+    mcp_result = None
+    should_use_mcp = (user_request_text and
+                     model_name not in ["model-discovery", "unknown"] and
+                     key_manager.get_setting('mcp_enabled', 'false').lower() == 'true' and
+                     key_manager.get_setting('mcp_auto_detect_tools', 'true').lower() == 'true')
+
+    if should_use_mcp and user_request_text:
+        try:
+            # Prepare request data with additional context
+            mcp_request_data = {
+                'provider_format': provider_format,
+                'model': model_name,
+                'request_id': request_id,
+                'ip_address': request.environ.get('REMOTE_ADDR'),
+                'user_agent': request.headers.get('User-Agent', ''),
+                'headers': dict(request.headers)
+            }
+
+            # Run MCP processing in async context
+            loop = None
+            try:
+                loop = asyncio.get_event_loop()
+            except RuntimeError:
+                loop = asyncio.new_event_loop()
+                asyncio.set_event_loop(loop)
+
+            if loop.is_running():
+                # If loop is already running, we need to run in a thread
+                import concurrent.futures
+                with concurrent.futures.ThreadPoolExecutor() as executor:
+                    future = executor.submit(asyncio.run, process_request_with_mcp_integration(
+                        user_request_text, mcp_request_data, session_id
+                    ))
+                    mcp_result = future.result(timeout=30)  # 30 second timeout
+            else:
+                mcp_result = loop.run_until_complete(process_request_with_mcp_integration(
+                    user_request_text, mcp_request_data, session_id
+                ))
+
+            # If MCP provided a complete response, return it directly
+            if mcp_result and mcp_result.get('requires_mcp') and mcp_result.get('response'):
+                add_log_entry(f"MCP: Provided complete response with {len(mcp_result.get('tool_results', []))} tools", "text-green-400")
+
+                # Format response according to the original request format
+                formatted_response = _format_mcp_response_for_client(
+                    mcp_result['response'],
+                    provider_format,
+                    model_name,
+                    mcp_result.get('tool_results', [])
+                )
+
+                # Return the MCP-enhanced response
+                response_data = formatted_response
+                response = None
+
+                if isinstance(formatted_response, dict):
+                    response = jsonify(formatted_response)
+                else:
+                    response = Response(formatted_response, content_type=_get_content_type(provider_format))
+
+                # Add session ID to response headers if available
+                if mcp_result and mcp_result.get('session_id'):
+                    response.headers['X-MCP-Session-ID'] = mcp_result['session_id']
+
+                return response
+
+            # If MCP detected tools but didn't provide complete response,
+            # we'll continue with AI API and can potentially enhance the response later
+            elif mcp_result and mcp_result.get('requires_mcp'):
+                add_log_entry(f"MCP: Tools detected but proceeding with AI for enhancement", "text-yellow-400")
+
+        except Exception as e:
+            add_log_entry(f"MCP: Integration error - {str(e)}", "text-red-500")
+            logger.error(f"MCP integration error: {str(e)}")
+
+    # Cache request params for potential retries
     request_params = request.args
     
     # Retry logic with automatic failover - get from settings
@@ -563,3 +652,140 @@ def proxy(path):
     # If we've exhausted all retries
     add_log_entry(f"All retry attempts exhausted.", "text-red-500")
     return jsonify({"error": "All keys failed after retries"}), 503
+
+
+# --- MCP Helper Functions ---
+
+def _extract_user_request_text(request_data: bytes, provider_format: str) -> Optional[str]:
+    """
+    Extract user request text from request data for MCP analysis
+
+    Args:
+        request_data: Raw request data
+        provider_format: 'gemini' or 'openai'
+
+    Returns:
+        Extracted user text or None
+    """
+    try:
+        if not request_data:
+            return None
+
+        json_data = json.loads(request_data.decode('utf-8'))
+
+        if provider_format == 'gemini':
+            # Extract from Gemini format
+            contents = json_data.get('contents', [])
+            if contents and isinstance(contents, list):
+                for content in contents:
+                    parts = content.get('parts', [])
+                    if parts and isinstance(parts, list):
+                        for part in parts:
+                            if 'text' in part:
+                                return part['text']
+
+        elif provider_format == 'openai':
+            # Extract from OpenAI format
+            messages = json_data.get('messages', [])
+            if messages and isinstance(messages, list):
+                # Get the last user message
+                for message in reversed(messages):
+                    if message.get('role') == 'user':
+                        content = message.get('content')
+                        if isinstance(content, str):
+                            return content
+                        elif isinstance(content, list):
+                            # Handle structured content
+                            text_parts = []
+                            for part in content:
+                                if part.get('type') == 'text':
+                                    text_parts.append(part.get('text', ''))
+                            return ' '.join(text_parts) if text_parts else None
+
+        return None
+
+    except (json.JSONDecodeError, UnicodeDecodeError, KeyError, TypeError) as e:
+        logger.error(f"Error extracting user request text: {str(e)}")
+        return None
+
+def _format_mcp_response_for_client(mcp_response: str, provider_format: str,
+                                   model_name: str, tool_results: List[Dict[str, Any]]) -> Union[dict, str]:
+    """
+    Format MCP response for the client according to the provider format
+
+    Args:
+        mcp_response: The MCP response text
+        provider_format: 'gemini' or 'openai'
+        model_name: Model name for the response
+        tool_results: List of tool results used
+
+    Returns:
+        Formatted response (dict for JSON, str for text)
+    """
+    try:
+        # Add tool attribution to response
+        attribution = ""
+        if tool_results:
+            successful_tools = [t for t in tool_results if t.get('success')]
+            if successful_tools:
+                tool_names = [t.get('tool_name', 'unknown') for t in successful_tools]
+                attribution = f"\n\n*(Response enhanced using tools: {', '.join(tool_names)})*"
+
+        full_response = mcp_response + attribution
+
+        if provider_format == 'gemini':
+            # Gemini format
+            return {
+                "candidates": [{
+                    "content": {
+                        "parts": [{
+                            "text": full_response
+                        }],
+                        "role": "model"
+                    },
+                    "finishReason": "STOP"
+                }],
+                "usageMetadata": {
+                    "promptTokenCount": 0,  # Would need actual token counting
+                    "candidatesTokenCount": 0,
+                    "totalTokenCount": 0
+                }
+            }
+
+        elif provider_format == 'openai':
+            # OpenAI format
+            return {
+                "id": f"chatcmpl-{uuid.uuid4().hex[:8]}",
+                "object": "chat.completion",
+                "created": int(time.time()),
+                "model": model_name,
+                "choices": [{
+                    "index": 0,
+                    "message": {
+                        "role": "assistant",
+                        "content": full_response
+                    },
+                    "finish_reason": "stop"
+                }],
+                "usage": {
+                    "prompt_tokens": 0,  # Would need actual token counting
+                    "completion_tokens": 0,
+                    "total_tokens": 0
+                }
+            }
+
+        else:
+            # Fallback to plain text
+            return full_response
+
+    except Exception as e:
+        logger.error(f"Error formatting MCP response: {str(e)}")
+        # Fallback to plain text
+        return mcp_response
+
+def _get_content_type(provider_format: str) -> str:
+    """Get appropriate content type for provider format"""
+    if provider_format in ['gemini', 'openai']:
+        return 'application/json'
+    else:
+        return 'text/plain'

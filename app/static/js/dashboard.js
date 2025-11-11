@@ -237,6 +237,278 @@ async function displayKeyDetails(keyId, keyName) {
     updateChart('latencyChart', 'line', 'Average Latency (ms)', labels, [{ label: 'Avg Latency', data: stats.map(s => s.requests > 0 ? s.total_latency_ms / s.requests : 0), borderColor: CHART_COLORS.yellow }]);
 }
 
+async function displayMCPMonitoring() {
+    // Destroy old charts to prevent conflicts when switching views
+    Object.keys(charts).forEach(id => {
+        if (charts[id]) {
+            charts[id].destroy();
+            delete charts[id];
+        }
+    });
+
+    document.getElementById('dashboard-content').innerHTML = `
+        <div class="flex justify-between items-center mb-6">
+            <h1 class="text-3xl font-bold">MCP (Model Context Protocol) Monitoring</h1>
+            <div class="flex gap-2">
+                <button id="mcp-manage-servers-btn" class="bg-purple-600 hover:bg-purple-700 text-white font-bold py-2 px-4 rounded flex items-center gap-2">
+                    <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                    </svg>
+                    Manage Servers
+                </button>
+                <button id="mcp-reload-btn" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded flex items-center gap-2">
+                    <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                    </svg>
+                    Reload Configuration
+                </button>
+            </div>
+        </div>
+
+        <!-- MCP Status Cards -->
+        <div class="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-4 gap-4 mb-6">
+            <div class="glass-card p-4" id="mcp-enabled-card"></div>
+            <div class="glass-card p-4" id="mcp-servers-card"></div>
+            <div class="glass-card p-4" id="mcp-tools-card"></div>
+            <div class="glass-card p-4" id="mcp-requests-card"></div>
+        </div>
+
+        <!-- Charts Section -->
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-6">
+            <div class="glass-card p-4 h-[28rem]">
+                <canvas id="mcpUsageChart"></canvas>
+            </div>
+            <div class="glass-card p-4 h-[28rem]">
+                <canvas id="mcpToolsChart"></canvas>
+            </div>
+        </div>
+
+        <!-- Server Health Section -->
+        <div class="glass-card p-4 mb-6">
+            <div class="flex justify-between items-center mb-4">
+                <h2 class="text-xl font-bold">MCP Server Health</h2>
+                <button id="mcp-add-server-btn" class="bg-green-600 hover:bg-green-700 text-white text-sm font-bold py-2 px-4 rounded flex items-center gap-2">
+                    <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+                    </svg>
+                    Add Server
+                </button>
+            </div>
+            <div id="mcp-servers-container" class="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4">
+                <div class="text-center text-gray-400">Loading server health information...</div>
+            </div>
+        </div>
+
+        <!-- Recent Tool Calls -->
+        <div class="glass-card p-4">
+            <h2 class="text-xl font-bold mb-4">Recent Tool Calls</h2>
+            <div id="mcp-recent-calls" class="space-y-2 max-h-64 overflow-y-auto">
+                <div class="text-center text-gray-400">Loading recent tool calls...</div>
+            </div>
+        </div>
+    `;
+
+    // Add event listener for manage servers button
+    document.getElementById('mcp-manage-servers-btn').addEventListener('click', () => {
+        openMCPServerModal();
+    });
+
+    // Add event listener for add server button
+    document.getElementById('mcp-add-server-btn').addEventListener('click', () => {
+        openMCPServerModal();
+    });
+
+    // Add event listener for reload button
+    document.getElementById('mcp-reload-btn').addEventListener('click', async () => {
+        const btn = document.getElementById('mcp-reload-btn');
+        btn.disabled = true;
+        btn.innerHTML = `
+            <svg class="h-5 w-5 animate-spin" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+            </svg>
+            Reloading...
+        `;
+
+        try {
+            const response = await fetch('/middleware/api/mcp/reload', { method: 'POST' });
+            const result = await response.json();
+            showToast(result.message, !response.ok);
+            if (response.ok) {
+                await updateMCPData();
+            }
+        } catch (error) {
+            showToast('Failed to reload MCP configuration', true);
+            console.error('MCP reload error:', error);
+        } finally {
+            btn.disabled = false;
+            btn.innerHTML = `
+                <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                </svg>
+                Reload Configuration
+            `;
+        }
+    });
+
+    await updateMCPData();
+}
+
+async function updateMCPData() {
+    try {
+        // Get MCP statistics and health
+        const [statsResponse, healthResponse] = await Promise.all([
+            fetch('/middleware/api/mcp/stats'),
+            fetch('/middleware/api/mcp/health')
+        ]);
+
+        const stats = await statsResponse.json();
+        const health = await healthResponse.json();
+
+        // Update status cards
+        updateMCPStatusCards(stats, health);
+
+        // Update charts
+        updateMCPCharts(stats);
+
+        // Update server health
+        updateMCPServerHealth(health);
+
+        // Update recent calls (placeholder for now)
+        updateMCPRecentCalls();
+
+    } catch (error) {
+        console.error('Failed to update MCP data:', error);
+        document.getElementById('dashboard-content').innerHTML = `
+            <div class="text-center text-gray-400 p-8">
+                <h2 class="text-2xl font-bold mb-4">MCP Monitoring Error</h2>
+                <p>Failed to load MCP data. Please check if MCP is properly configured.</p>
+                <p class="text-sm mt-2">${error.message}</p>
+            </div>
+        `;
+    }
+}
+
+function updateMCPStatusCards(stats, health) {
+    // MCP Enabled Status
+    const enabledCard = document.getElementById('mcp-enabled-card');
+    const enabled = health.enabled || false;
+    const enabledColor = enabled ? 'text-green-400' : 'text-gray-400';
+    const enabledStatus = enabled ? 'Enabled' : 'Disabled';
+    enabledCard.innerHTML = `
+        <div class="text-gray-400 text-sm">MCP Status</div>
+        <div class="text-2xl font-bold ${enabledColor}">${enabledStatus}</div>
+        <div class="text-xs text-gray-500 mt-1">${health.error || 'System operational'}</div>
+    `;
+
+    // Servers Status
+    const serversCard = document.getElementById('mcp-servers-card');
+    const serverStats = health.statistics?.servers || {};
+    serversCard.innerHTML = `
+        <div class="text-gray-400 text-sm">Active Servers</div>
+        <div class="text-2xl font-bold text-blue-400">${serverStats.active || 0}/${serverStats.total || 0}</div>
+        <div class="text-xs text-gray-500 mt-1">${serverStats.connected || 0} connected</div>
+    `;
+
+    // Tools Status
+    const toolsCard = document.getElementById('mcp-tools-card');
+    const totalTools = stats.summary?.total_tools || 0;
+    toolsCard.innerHTML = `
+        <div class="text-gray-400 text-sm">Available Tools</div>
+        <div class="text-2xl font-bold text-purple-400">${totalTools}</div>
+        <div class="text-xs text-gray-500 mt-1">${Object.keys(stats.tool_categories || {}).length} categories</div>
+    `;
+
+    // Requests Status
+    const requestsCard = document.getElementById('mcp-requests-card');
+    const totalRequests = stats.summary?.total_calls || 0;
+    const successRate = stats.summary?.success_rate || 0;
+    requestsCard.innerHTML = `
+        <div class="text-gray-400 text-sm">Tool Calls (7d)</div>
+        <div class="text-2xl font-bold text-yellow-400">${totalRequests.toLocaleString()}</div>
+        <div class="text-xs text-gray-500 mt-1">${successRate.toFixed(1)}% success rate</div>
+    `;
+}
+
+function updateMCPCharts(stats) {
+    // Usage over time chart
+    const usageByDay = stats.usage_by_day || [];
+    const usageLabels = usageByDay.map(u => new Date(u.usage_date).toLocaleDateString());
+    const usageData = usageByDay.map(u => u.total_calls || 0);
+
+    updateChart('mcpUsageChart', 'line', 'MCP Tool Usage (Last 7 Days)', usageLabels, [
+        { label: 'Tool Calls', data: usageData, borderColor: CHART_COLORS.blue, backgroundColor: CHART_COLORS.blue + '20' }
+    ]);
+
+    // Tools by category chart
+    const categories = Object.keys(stats.tool_categories || {});
+    const categoryData = Object.values(stats.tool_categories || {});
+
+    updatePieChart('mcpToolsChart', 'Tools by Category', categories, categoryData);
+}
+
+function updateMCPServerHealth(health) {
+    const container = document.getElementById('mcp-servers-container');
+    const servers = health.servers || [];
+
+    if (servers.length === 0) {
+        container.innerHTML = '<div class="text-center text-gray-400">No MCP servers configured</div>';
+        return;
+    }
+
+    container.innerHTML = servers.map(server => {
+        const statusColor = server.status === 'Active' ? 'text-green-400' :
+                           server.status === 'Inactive' ? 'text-yellow-400' : 'text-red-400';
+        const statusIcon = server.status === 'Active' ? '✓' :
+                           server.status === 'Inactive' ? '⚠' : '✗';
+
+        return `
+            <div class="glass-card p-4">
+                <div class="flex justify-between items-start mb-2">
+                    <h3 class="font-bold text-white">${server.name}</h3>
+                    <span class="${statusColor} text-lg">${statusIcon}</span>
+                </div>
+                <div class="text-sm text-gray-400 mb-2">${server.url}</div>
+                <div class="text-xs mb-3">
+                    <span class="${statusColor}">Status: ${server.status}</span>
+                    ${server.last_check ? `<br>Last check: ${new Date(server.last_check).toLocaleTimeString()}` : ''}
+                </div>
+                <div class="flex gap-2">
+                    <button onclick="editMCPServer('${server.id}')" class="text-blue-400 hover:text-blue-300 text-xs font-medium">
+                        <svg class="h-4 w-4 inline mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                        </svg>
+                        Edit
+                    </button>
+                    <button onclick="testMCPServerConnection('${server.id}')" class="text-green-400 hover:text-green-300 text-xs font-medium">
+                        <svg class="h-4 w-4 inline mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                        Test
+                    </button>
+                    <button onclick="deleteMCPServer('${server.id}')" class="text-red-400 hover:text-red-300 text-xs font-medium">
+                        <svg class="h-4 w-4 inline mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                        </svg>
+                        Delete
+                    </button>
+                </div>
+            </div>
+        `;
+    }).join('');
+}
+
+function updateMCPRecentCalls() {
+    // Placeholder for recent calls - would need additional API endpoint
+    const container = document.getElementById('mcp-recent-calls');
+    container.innerHTML = `
+        <div class="text-center text-gray-400 text-sm">
+            <p>Recent tool calls will appear here</p>
+            <p class="text-xs mt-1">(Detailed call history requires additional logging)</p>
+        </div>
+    `;
+}
+
 async function fetchLogs() {
     const response = await fetch('/middleware/api/logs');
     const logs = await response.json();
@@ -512,11 +784,334 @@ function updateClock() {
     }
 }
 
+// MCP Server Management Functions
+function openMCPServerModal() {
+    document.getElementById('mcp-server-modal').classList.remove('hidden');
+    updateAuthFields();
+}
+
+function closeMCPServerModal() {
+    document.getElementById('mcp-server-modal').classList.add('hidden');
+    document.getElementById('mcp-server-form').reset();
+    document.getElementById('mcp-server-id').value = '';
+    updateAuthFields();
+}
+
+function updateAuthFields() {
+    const authType = document.getElementById('mcp-auth-type').value;
+    const authCredentials = document.getElementById('mcp-auth-credentials');
+
+    authCredentials.innerHTML = '';
+
+    if (authType === 'bearer') {
+        authCredentials.innerHTML = `
+            <div>
+                <label for="mcp-bearer-token" class="block mb-2 text-sm font-medium">Bearer Token</label>
+                <input type="password" id="mcp-bearer-token"
+                    class="w-full bg-gray-700 rounded p-3 border border-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    placeholder="Enter Bearer token">
+            </div>
+        `;
+    } else if (authType === 'api_key') {
+        authCredentials.innerHTML = `
+            <div>
+                <label for="mcp-api-key" class="block mb-2 text-sm font-medium">API Key</label>
+                <input type="password" id="mcp-api-key"
+                    class="w-full bg-gray-700 rounded p-3 border border-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    placeholder="Enter API key">
+            </div>
+            <div>
+                <label for="mcp-api-key-header" class="block mb-2 text-sm font-medium">Header Name</label>
+                <input type="text" id="mcp-api-key-header" value="X-API-Key"
+                    class="w-full bg-gray-700 rounded p-3 border border-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    placeholder="Header name (e.g., X-API-Key)">
+            </div>
+        `;
+    } else if (authType === 'oauth') {
+        authCredentials.innerHTML = `
+            <div>
+                <label for="mcp-client-id" class="block mb-2 text-sm font-medium">Client ID</label>
+                <input type="text" id="mcp-client-id"
+                    class="w-full bg-gray-700 rounded p-3 border border-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    placeholder="Enter OAuth client ID">
+            </div>
+            <div>
+                <label for="mcp-client-secret" class="block mb-2 text-sm font-medium">Client Secret</label>
+                <input type="password" id="mcp-client-secret"
+                    class="w-full bg-gray-700 rounded p-3 border border-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    placeholder="Enter OAuth client secret">
+            </div>
+            <div>
+                <label for="mcp-token-url" class="block mb-2 text-sm font-medium">Token URL</label>
+                <input type="url" id="mcp-token-url"
+                    class="w-full bg-gray-700 rounded p-3 border border-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    placeholder="https://oauth.example.com/token">
+            </div>
+        `;
+    }
+}
+
+async function testMCPConnection() {
+    const serverId = document.getElementById('mcp-server-id').value;
+    const name = document.getElementById('mcp-server-name').value;
+    const url = document.getElementById('mcp-server-url').value;
+    const authType = document.getElementById('mcp-auth-type').value;
+    const timeout = parseInt(document.getElementById('mcp-timeout').value);
+
+    if (!name || !url) {
+        showToast('Please fill in server name and URL', true);
+        return;
+    }
+
+    const authCredentials = {};
+    if (authType === 'bearer') {
+        authCredentials.token = document.getElementById('mcp-bearer-token')?.value;
+    } else if (authType === 'api_key') {
+        authCredentials.key = document.getElementById('mcp-api-key')?.value;
+        authCredentials.header = document.getElementById('mcp-api-key-header')?.value || 'X-API-Key';
+    } else if (authType === 'oauth') {
+        authCredentials.client_id = document.getElementById('mcp-client-id')?.value;
+        authCredentials.client_secret = document.getElementById('mcp-client-secret')?.value;
+        authCredentials.token_url = document.getElementById('mcp-token-url')?.value;
+    }
+
+    const testBtn = document.getElementById('test-connection-btn');
+    const originalText = testBtn.innerHTML;
+    testBtn.disabled = true;
+    testBtn.innerHTML = '<div class="animate-spin h-5 w-5 border-2 border-white border-t-transparent rounded-full"></div> Testing...';
+
+    try {
+        const response = await fetch('/middleware/api/mcp/servers/test', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                name,
+                url,
+                auth_type: authType,
+                auth_credentials: authCredentials,
+                timeout
+            })
+        });
+
+        const result = await response.json();
+
+        if (response.ok && result.success) {
+            showToast('Connection test successful!');
+            updateServerDetails(result.server_info);
+            if (result.available_tools) {
+                updateToolsList(result.available_tools);
+            }
+        } else {
+            showToast(result.error || 'Connection test failed', true);
+        }
+    } catch (error) {
+        showToast('Connection test failed: ' + error.message, true);
+    } finally {
+        testBtn.disabled = false;
+        testBtn.innerHTML = originalText;
+    }
+}
+
+function updateServerDetails(serverInfo) {
+    const detailsDiv = document.getElementById('mcp-server-details');
+    detailsDiv.innerHTML = `
+        <div class="space-y-2">
+            <p><strong>Name:</strong> ${serverInfo.name}</p>
+            <p><strong>URL:</strong> ${serverInfo.url}</p>
+            <p><strong>Protocol:</strong> ${serverInfo.protocol || 'WebSocket/HTTP'}</p>
+            <p><strong>Authentication:</strong> ${serverInfo.auth_type || 'None'}</p>
+            <p><strong>Status:</strong> <span class="text-green-400">Connected</span></p>
+            <p><strong>Database Status:</strong> <span class="text-blue-400">Active</span></p>
+        </div>
+    `;
+}
+
+function updateToolsList(tools) {
+    const toolsList = document.getElementById('mcp-tools-list');
+    if (tools && tools.length > 0) {
+        toolsList.innerHTML = tools.map(tool => `
+            <div class="bg-gray-800 rounded p-3 border border-gray-600">
+                <div class="font-semibold text-white mb-1">${tool.name}</div>
+                <div class="text-sm text-gray-400 mb-2">${tool.description || 'No description'}</div>
+                <div class="text-xs text-gray-500">
+                    <span class="font-mono">${tool.input_schema ? JSON.stringify(tool.input_schema).slice(0, 100) + '...' : 'No parameters'}</span>
+                </div>
+            </div>
+        `).join('');
+    } else {
+        toolsList.innerHTML = '<p class="text-sm text-gray-400">No tools available</p>';
+    }
+}
+
+async function refreshMCPTools() {
+    const testBtn = document.getElementById('refresh-tools-btn');
+    const originalText = testBtn.innerHTML;
+    testBtn.disabled = true;
+    testBtn.innerHTML = '<div class="animate-spin h-5 w-5 border-2 border-white border-t-transparent rounded-full"></div> Refreshing...';
+
+    try {
+        await testMCPConnection(); // Re-run connection test to refresh tools
+    } finally {
+        testBtn.disabled = false;
+        testBtn.innerHTML = originalText;
+    }
+}
+
+async function saveMCPServer() {
+    const serverId = document.getElementById('mcp-server-id').value;
+    const name = document.getElementById('mcp-server-name').value;
+    const url = document.getElementById('mcp-server-url').value;
+    const authType = document.getElementById('mcp-auth-type').value;
+    const timeout = parseInt(document.getElementById('mcp-timeout').value);
+    const maxConcurrent = parseInt(document.getElementById('mcp-max-concurrent').value);
+    const healthUrl = document.getElementById('mcp-health-url').value;
+    const status = document.getElementById('mcp-server-status').value;
+
+    if (!name || !url) {
+        showToast('Please fill in server name and URL', true);
+        return;
+    }
+
+    const authCredentials = {};
+    if (authType === 'bearer') {
+        authCredentials.token = document.getElementById('mcp-bearer-token')?.value;
+    } else if (authType === 'api_key') {
+        authCredentials.key = document.getElementById('mcp-api-key')?.value;
+        authCredentials.header = document.getElementById('mcp-api-key-header')?.value || 'X-API-Key';
+    } else if (authType === 'oauth') {
+        authCredentials.client_id = document.getElementById('mcp-client-id')?.value;
+        authCredentials.client_secret = document.getElementById('mcp-client-secret')?.value;
+        authCredentials.token_url = document.getElementById('mcp-token-url')?.value;
+    }
+
+    const serverData = {
+        name,
+        url,
+        auth_type: authType,
+        auth_credentials: authCredentials,
+        timeout,
+        max_concurrent: maxConcurrent,
+        health_check_url: healthUrl,
+        status
+    };
+
+    try {
+        const url = serverId ? `/middleware/api/mcp/servers/${serverId}` : '/middleware/api/mcp/servers';
+        const method = serverId ? 'PUT' : 'POST';
+
+        const response = await fetch(url, {
+            method,
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(serverData)
+        });
+
+        const result = await response.json();
+
+        if (response.ok) {
+            showToast(serverId ? 'MCP server updated successfully!' : 'MCP server created successfully!');
+            closeMCPServerModal();
+            // Refresh MCP monitoring if it's currently active
+            if (document.querySelector('.sidebar-item.active')?.id === 'mcp-btn-li') {
+                await displayMCPMonitoring();
+            }
+        } else {
+            showToast(result.error || 'Failed to save MCP server', true);
+        }
+    } catch (error) {
+        showToast('Failed to save MCP server: ' + error.message, true);
+    }
+}
+
+async function editMCPServer(serverId) {
+    try {
+        const response = await fetch(`/middleware/api/mcp/servers/${serverId}`);
+        const server = await response.json();
+
+        if (response.ok) {
+            // Populate modal with server data
+            document.getElementById('mcp-server-id').value = server.id;
+            document.getElementById('mcp-server-name').value = server.name;
+            document.getElementById('mcp-server-url').value = server.url;
+            document.getElementById('mcp-auth-type').value = server.auth_type || 'none';
+            document.getElementById('mcp-timeout').value = server.timeout || 30;
+            document.getElementById('mcp-max-concurrent').value = server.max_concurrent || 10;
+            document.getElementById('mcp-health-url').value = server.health_check_url || '';
+            document.getElementById('mcp-server-status').value = server.status || 'Active';
+
+            updateAuthFields();
+
+            // Fill auth credentials
+            if (server.auth_credentials) {
+                if (server.auth_type === 'bearer') {
+                    document.getElementById('mcp-bearer-token').value = server.auth_credentials.token || '';
+                } else if (server.auth_type === 'api_key') {
+                    document.getElementById('mcp-api-key').value = server.auth_credentials.key || '';
+                    document.getElementById('mcp-api-key-header').value = server.auth_credentials.header || 'X-API-Key';
+                } else if (server.auth_type === 'oauth') {
+                    document.getElementById('mcp-client-id').value = server.auth_credentials.client_id || '';
+                    document.getElementById('mcp-client-secret').value = server.auth_credentials.client_secret || '';
+                    document.getElementById('mcp-token-url').value = server.auth_credentials.token_url || '';
+                }
+            }
+
+            openMCPServerModal();
+        } else {
+            showToast('Failed to load server details', true);
+        }
+    } catch (error) {
+        showToast('Failed to load server details: ' + error.message, true);
+    }
+}
+
+async function testMCPServerConnection(serverId) {
+    try {
+        const response = await fetch(`/middleware/api/mcp/servers/${serverId}/test`, { method: 'POST' });
+        const result = await response.json();
+
+        if (response.ok && result.success) {
+            showToast('Server connection test successful!');
+            // Refresh server health display
+            if (document.querySelector('.sidebar-item.active')?.id === 'mcp-btn-li') {
+                await displayMCPMonitoring();
+            }
+        } else {
+            showToast(result.error || 'Connection test failed', true);
+        }
+    } catch (error) {
+        showToast('Connection test failed: ' + error.message, true);
+    }
+}
+
+async function deleteMCPServer(serverId) {
+    if (!confirm('Are you sure you want to delete this MCP server? This action cannot be undone.')) {
+        return;
+    }
+
+    try {
+        const response = await fetch(`/middleware/api/mcp/servers/${serverId}`, { method: 'DELETE' });
+        const result = await response.json();
+
+        if (response.ok) {
+            showToast('MCP server deleted successfully!');
+            // Refresh MCP monitoring if it's currently active
+            if (document.querySelector('.sidebar-item.active')?.id === 'mcp-btn-li') {
+                await displayMCPMonitoring();
+            }
+        } else {
+            showToast(result.error || 'Failed to delete MCP server', true);
+        }
+    } catch (error) {
+        showToast('Failed to delete MCP server: ' + error.message, true);
+    }
+}
+
 // Initial setup and intervals
 document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('add-new-key-btn').addEventListener('click', () => openModal());
     document.getElementById('key-form').addEventListener('submit', handleFormSubmit);
     document.getElementById('global-overview-btn-li').addEventListener('click', (e) => { e.preventDefault(); setActiveView(e.currentTarget, displayGlobalOverview); });
+    document.getElementById('mcp-btn-li').addEventListener('click', (e) => { e.preventDefault(); setActiveView(e.currentTarget, displayMCPMonitoring); });
+    document.getElementById('mcp-servers-btn-li').addEventListener('click', (e) => { e.preventDefault(); openMCPServerModal(); });
     document.getElementById('key-search').addEventListener('keyup', debounce(filterKeys, 300));
     document.getElementById('status-filter')?.addEventListener('change', filterKeys);
     document.getElementById('apply-bulk-action').addEventListener('click', applyBulkAction);
@@ -524,6 +1119,14 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('import-export-btn').addEventListener('click', openImportExportModal);
     document.getElementById('export-btn').addEventListener('click', exportKeys);
     document.getElementById('import-btn').addEventListener('click', importKeys);
+
+    // MCP Server Modal Event Listeners
+    document.getElementById('mcp-server-form').addEventListener('submit', (e) => {
+        e.preventDefault();
+        saveMCPServer();
+    });
+    document.getElementById('test-connection-btn').addEventListener('click', testMCPConnection);
+    document.getElementById('refresh-tools-btn').addEventListener('click', refreshMCPTools);
     
     // Add ripple effect to all buttons
     document.addEventListener('click', (e) => {
@@ -542,8 +1145,10 @@ document.addEventListener('DOMContentLoaded', () => {
         if (e.key === 'Escape') {
             const keyModal = document.getElementById('key-modal');
             const importModal = document.getElementById('import-export-modal');
+            const mcpModal = document.getElementById('mcp-server-modal');
             if (!keyModal.classList.contains('hidden')) closeModal();
             if (!importModal.classList.contains('hidden')) closeImportExportModal();
+            if (!mcpModal.classList.contains('hidden')) closeMCPServerModal();
         }
     });
     
@@ -553,6 +1158,9 @@ document.addEventListener('DOMContentLoaded', () => {
     });
     document.getElementById('import-export-modal').addEventListener('click', (e) => {
         if (e.target.id === 'import-export-modal') closeImportExportModal();
+    });
+    document.getElementById('mcp-server-modal').addEventListener('click', (e) => {
+        if (e.target.id === 'mcp-server-modal') closeMCPServerModal();
     });
     
     fetchKeys();

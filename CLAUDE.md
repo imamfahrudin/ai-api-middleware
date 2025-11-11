@@ -168,3 +168,229 @@ FLASK_ENV=production
 - **Response Caching**: 5-minute cache for model discovery endpoints
 - **Streaming**: Real-time response streaming for generative AI endpoints
 - **Backpressure Handling**: Proper flow control for streaming responses
+
+## MCP (Model Context Protocol) Implementation
+
+### Overview
+The MCP implementation adds Model Context Protocol support to the AI API Middleware, enabling seamless integration with Claude Desktop and other MCP-compatible applications. This implementation transforms the middleware into a full-featured MCP server that can expose tools and resources to AI assistants.
+
+### What is MCP?
+Model Context Protocol (MCP) is an open protocol that standardizes how AI applications connect to data sources and tools. It provides:
+- **Secure Communication**: Standardized request/response patterns between AI assistants and external tools
+- **Tool Discovery**: Dynamic registration and discovery of available tools and resources
+- **Resource Management**: Unified access to files, databases, APIs, and other resources
+- **Session Management**: Persistent connections with proper authentication and authorization
+
+### Current Implementation Status
+
+#### ✅ What's Working
+- **MCP Client Discovery**: Automatic detection and connection to running MCP servers
+- **Tool Registration**: Dynamic registration of MCP tools as middleware endpoints
+- **Basic Proxy Integration**: Forwarding of tool requests to MCP servers
+- **Database Schema**: MCP server and tool storage implemented
+- **UI Foundation**: Basic MCP management interface added to dashboard
+- **API Endpoints**: Core CRUD operations for MCP server management
+
+#### 🚧 In Progress
+- **Tool Execution**: Enhanced error handling and response formatting
+- **Resource Management**: File and resource access through MCP protocol
+- **Real-time Updates**: Live status updates for MCP server connections
+- **Authentication**: Secure token-based authentication for MCP connections
+
+#### ❌ Not Yet Implemented
+- **Advanced Tool Features**: Streaming responses, progress indicators
+- **Resource Caching**: Intelligent caching of MCP resource responses
+- **Tool Composition**: Combining multiple MCP tools in workflows
+- **Monitoring**: Comprehensive logging and performance metrics for MCP operations
+
+### Architecture Overview
+
+#### MCP Integration Layer
+```
+┌─────────────────┐    ┌──────────────────┐    ┌─────────────────┐
+│   Claude Desktop│◄──►│  AI API Middleware│◄──►│   MCP Servers   │
+│   (MCP Client)  │    │   (MCP Proxy)    │    │  (Tool Providers)│
+└─────────────────┘    └──────────────────┘    └─────────────────┘
+                              │
+                              ▼
+                       ┌─────────────────┐
+                       │  AI API Proxy   │
+                       │  (OpenAI/Gemini)│
+                       └─────────────────┘
+```
+
+#### Core Components
+- **MCP Client**: Handles connection management and protocol communication with MCP servers
+- **Tool Registry**: Dynamic registration and mapping of MCP tools to HTTP endpoints
+- **Request Router**: Intelligent routing between MCP tools and AI API endpoints
+- **Resource Manager**: Unified access to files, databases, and external resources
+- **Session Handler**: Persistent connection management with proper cleanup
+
+### Database Schema Changes
+
+#### New Tables Added
+```sql
+-- MCP server configurations
+CREATE TABLE mcp_servers (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL UNIQUE,
+    transport_type TEXT NOT NULL, -- 'stdio' or 'sse'
+    command TEXT,                 -- Command for stdio transport
+    args TEXT,                    -- JSON array of arguments
+    env TEXT,                     -- JSON object of environment variables
+    url TEXT,                     -- URL for SSE transport
+    headers TEXT,                 -- JSON object of headers for SSE
+    is_active BOOLEAN DEFAULT 1,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Registered MCP tools
+CREATE TABLE mcp_tools (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    server_id INTEGER NOT NULL,
+    name TEXT NOT NULL,
+    description TEXT,
+    input_schema TEXT,            -- JSON schema for tool inputs
+    is_active BOOLEAN DEFAULT 1,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (server_id) REFERENCES mcp_servers (id) ON DELETE CASCADE
+);
+```
+
+### API Endpoints Created
+
+#### MCP Server Management
+- `GET /middleware/api/mcp/servers` - List all MCP servers
+- `POST /middleware/api/mcp/servers` - Create new MCP server
+- `PUT /middleware/api/mcp/servers/{id}` - Update MCP server configuration
+- `DELETE /middleware/api/mcp/servers/{id}` - Delete MCP server
+- `POST /middleware/api/mcp/servers/{id}/connect` - Connect to MCP server
+- `POST /middleware/api/mcp/servers/{id}/disconnect` - Disconnect from MCP server
+
+#### Tool Management
+- `GET /middleware/api/mcp/tools` - List all registered MCP tools
+- `GET /middleware/api/mcp/tools/{id}` - Get specific tool details
+- `POST /middleware/api/mcp/tools/{id}/execute` - Execute MCP tool
+- `GET /middleware/api/mcp/servers/{id}/tools` - List tools for specific server
+
+#### Status and Monitoring
+- `GET /middleware/api/mcp/status` - Get overall MCP system status
+- `GET /middleware/api/mcp/servers/{id}/status` - Get server connection status
+
+### UI Components Added
+
+#### Dashboard Integration
+- **MCP Servers Section**: New panel in main dashboard showing active MCP servers
+- **Tool Browser**: Interface to browse and inspect available MCP tools
+- **Connection Status**: Real-time status indicators for MCP server connections
+- **Quick Actions**: Connect/disconnect buttons and tool testing interface
+
+#### MCP Management Pages
+- **MCP Servers Page**: `/middleware/mcp/servers` - Full CRUD interface for server management
+- **Tool Explorer**: `/middleware/mcp/tools` - Browse and test MCP tools
+- **Connection Logs**: `/middleware/mcp/logs` - View MCP connection and execution logs
+
+### Known Issues and Limitations
+
+#### Current Limitations
+1. **Connection Reliability**: MCP server connections may timeout after long periods of inactivity
+2. **Error Handling**: Limited error recovery for failed tool executions
+3. **Tool Discovery**: Some MCP servers may not properly advertise all available tools
+4. **Resource Access**: File system access through MCP is currently restricted for security
+5. **Performance**: No caching mechanism for MCP tool responses
+6. **Authentication**: Limited support for token-based authentication schemes
+
+#### Security Considerations
+- MCP servers run with the same permissions as the middleware application
+- File system access should be carefully configured and restricted
+- Tool execution timeouts are in place but may need adjustment based on use case
+- Input validation is basic and should be enhanced for production use
+
+### Configuration Examples
+
+#### Stdio Transport MCP Server
+```json
+{
+    "name": "filesystem-server",
+    "transport_type": "stdio",
+    "command": "npx",
+    "args": ["-y", "@modelcontextprotocol/server-filesystem", "/tmp/mcp-files"],
+    "env": {
+        "NODE_ENV": "production"
+    }
+}
+```
+
+#### SSE Transport MCP Server
+```json
+{
+    "name": "weather-server",
+    "transport_type": "sse",
+    "url": "http://localhost:8080/sse",
+    "headers": {
+        "Authorization": "Bearer your-api-token"
+    }
+}
+```
+
+### Testing MCP Integration
+
+#### Example Tool Execution
+```bash
+# List available MCP tools
+curl -H "Authorization: Bearer YOUR_SESSION_TOKEN" \
+     http://localhost:5000/middleware/api/mcp/tools
+
+# Execute a filesystem tool
+curl -X POST \
+     -H "Authorization: Bearer YOUR_SESSION_TOKEN" \
+     -H "Content-Type: application/json" \
+     -d '{"path": "/tmp/test.txt"}' \
+     http://localhost:5000/middleware/api/mcp/tools/1/execute
+```
+
+## MCP Implementation Todo List
+
+### Phase 1: Foundation Completion (Immediate)
+- [ ] **Enhanced Error Handling**: Implement comprehensive error recovery for MCP connections
+- [ ] **Tool Input Validation**: Add JSON schema validation for all MCP tool inputs
+- [ ] **Connection Pooling**: Implement connection pooling for multiple MCP server instances
+- [ ] **Session Persistence**: Maintain MCP connections across application restarts
+- [ ] **Unit Tests**: Add comprehensive test coverage for MCP client and tool execution
+
+### Phase 2: Feature Enhancement (Next Sprint)
+- [ ] **Resource Caching**: Implement intelligent caching for MCP resource responses
+- [ ] **Streaming Support**: Add support for streaming responses from MCP tools
+- [ ] **Tool Composition**: Enable chaining multiple MCP tools in workflows
+- [ ] **Advanced Authentication**: Support OAuth, API keys, and custom auth schemes
+- [ ] **Performance Monitoring**: Add metrics and logging for MCP operation performance
+
+### Phase 3: Advanced Features (Future)
+- [ ] **Tool Versioning**: Support multiple versions of the same tool
+- [ ] **Dynamic Tool Loading**: Hot-reload MCP tools without server restart
+- [ ] **Multi-tenant Support**: Isolate MCP tools by user or organization
+- [ ] **Tool Marketplace**: Pre-configured MCP server templates and community tools
+- [ ] **GraphQL Integration**: Expose MCP tools through GraphQL interface
+
+### Phase 4: Production Readiness
+- [ ] **Security Audit**: Comprehensive security review of MCP implementation
+- [ ] **Load Testing**: Performance testing under high concurrent load
+- [ ] **Documentation**: Complete API documentation and user guides
+- [ ] **Monitoring Integration**: Prometheus metrics and health check endpoints
+- [ ] **Backup/Restore**: MCP configuration backup and disaster recovery
+
+### Bug Fixes and Improvements
+- [ ] Fix connection timeout issues with long-running MCP servers
+- [ ] Improve tool discovery to handle non-compliant MCP implementations
+- [ ] Add retry logic for failed tool executions
+- [ ] Optimize database queries for MCP server and tool listings
+- [ ] Enhance UI responsiveness for large numbers of MCP tools
+- [ ] Add configuration validation before saving MCP server settings
+
+### Research and Investigation
+- [ ] Evaluate MCP server ecosystem and popular implementations
+- [ ] Research best practices for MCP tool security and isolation
+- [ ] Investigate integration patterns with existing AI workflows
+- [ ] Study performance characteristics of different transport mechanisms
+- [ ] Analyze compatibility with various MCP client implementations

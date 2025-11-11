@@ -12,6 +12,9 @@ from app.config import SECRET_KEY
 from app.auth import auth_bp, login_required
 from app.api_routes import api_bp
 from app.proxy import proxy_bp
+from app.mcp_integration import initialize_mcp_integration
+from app.mcp_sessions import initialize_mcp_sessions
+from app.database import KeyManager
 
 # --- Logging Configuration ---
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -71,6 +74,15 @@ swagger = Swagger(app, config=swagger_config, template=swagger_template)
 app.register_blueprint(auth_bp)
 app.register_blueprint(api_bp)
 app.register_blueprint(proxy_bp)
+
+# --- Initialize MCP Integration ---
+try:
+    key_manager = KeyManager()
+    initialize_mcp_integration(key_manager)
+    initialize_mcp_sessions(key_manager)
+    logging.info("MCP integration and sessions initialized successfully")
+except Exception as e:
+    logging.error(f"Failed to initialize MCP integration: {str(e)}")
 
 # --- Dashboard Route ---
 @app.route('/middleware/')

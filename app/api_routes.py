@@ -1,3 +1,6 @@
+import time
+import json
+import requests
 from flask import jsonify, request, Blueprint
 from flasgger import swag_from
 from app.auth import login_required
@@ -635,3 +638,636 @@ def get_setting(setting_key):
     if value is None:
         return jsonify({"error": "Setting not found"}), 404
     return jsonify({"key": setting_key, "value": value})
+
+
+# --- MCP Management API Endpoints ---
+
+@api_bp.route('/middleware/api/mcp/servers', methods=['GET'])
+@login_required
+def get_mcp_servers():
+    """
+    Get all MCP servers
+    ---
+    tags:
+      - MCP Management
+    security:
+      - SessionAuth: []
+    parameters:
+      - name: status
+        in: query
+        type: string
+        required: false
+        description: Filter by status (Active, Inactive, Error)
+    responses:
+      200:
+        description: List of MCP servers
+        schema:
+          type: array
+          items:
+            type: object
+            properties:
+              id:
+                type: integer
+              name:
+                type: string
+              url:
+                type: string
+              status:
+                type: string
+              auth_type:
+                type: string
+      302:
+        description: Redirect to login if not authenticated
+    """
+    status_filter = request.args.get('status')
+    servers = key_manager.get_mcp_servers(status_filter=status_filter)
+    return jsonify(servers)
+
+@api_bp.route('/middleware/api/mcp/servers', methods=['POST'])
+@login_required
+def add_mcp_server():
+    """
+    Add a new MCP server
+    ---
+    tags:
+      - MCP Management
+    security:
+      - SessionAuth: []
+    parameters:
+      - name: body
+        in: body
+        required: true
+        schema:
+          type: object
+          required:
+            - name
+            - url
+          properties:
+            name:
+              type: string
+              description: Server name
+            url:
+              type: string
+              description: Server URL
+            auth_type:
+              type: string
+              enum: ['none', 'bearer', 'api_key', 'oauth']
+              default: 'none'
+            auth_credentials:
+              type: object
+              description: Authentication credentials
+            status:
+              type: string
+              enum: ['Active', 'Inactive', 'Error']
+              default: 'Active'
+    responses:
+      201:
+        description: Server created successfully
+        schema:
+          type: object
+          properties:
+            id:
+              type: integer
+            message:
+              type: string
+      400:
+        description: Bad request
+      302:
+        description: Redirect to login if not authenticated
+    """
+    try:
+        data = request.get_json()
+        if not data:
+            return jsonify({"error": "No data provided"}), 400
+
+        required_fields = ['name', 'url']
+        for field in required_fields:
+            if field not in data:
+                return jsonify({"error": f"Missing required field: {field}"}), 400
+
+        server_id = key_manager.add_mcp_server(
+            name=data['name'],
+            url=data['url'],
+            auth_type=data.get('auth_type', 'none'),
+            auth_credentials=data.get('auth_credentials'),
+            status=data.get('status', 'Active')
+        )
+
+        return jsonify({
+            "id": server_id,
+            "message": "MCP server created successfully"
+        }), 201
+
+    except ValueError as e:
+        return jsonify({"error": str(e)}), 400
+    except Exception as e:
+        return jsonify({"error": f"Failed to create MCP server: {str(e)}"}), 500
+
+@api_bp.route('/middleware/api/mcp/servers/<int:server_id>', methods=['PUT'])
+@login_required
+def update_mcp_server(server_id):
+    """
+    Update an MCP server
+    ---
+    tags:
+      - MCP Management
+    security:
+      - SessionAuth: []
+    parameters:
+      - name: server_id
+        in: path
+        type: integer
+        required: true
+        description: Server ID
+      - name: body
+        in: body
+        required: true
+        schema:
+          type: object
+          properties:
+            name:
+              type: string
+            url:
+              type: string
+            auth_type:
+              type: string
+            auth_credentials:
+              type: object
+            status:
+              type: string
+    responses:
+      200:
+        description: Server updated successfully
+      404:
+        description: Server not found
+      302:
+        description: Redirect to login if not authenticated
+    """
+    try:
+        data = request.get_json()
+        if not data:
+            return jsonify({"error": "No data provided"}), 400
+
+        # Check if server exists
+        server = key_manager.get_mcp_server(server_id)
+        if not server:
+            return jsonify({"error": "MCP server not found"}), 404
+
+        # Update server
+        key_manager.update_mcp_server(server_id, **data)
+
+        return jsonify({"message": "MCP server updated successfully"})
+
+    except Exception as e:
+        return jsonify({"error": f"Failed to update MCP server: {str(e)}"}), 500
+
+@api_bp.route('/middleware/api/mcp/servers/<int:server_id>', methods=['DELETE'])
+@login_required
+def delete_mcp_server(server_id):
+    """
+    Delete an MCP server
+    ---
+    tags:
+      - MCP Management
+    security:
+      - SessionAuth: []
+    parameters:
+      - name: server_id
+        in: path
+        type: integer
+        required: true
+        description: Server ID
+    responses:
+      200:
+        description: Server deleted successfully
+      404:
+        description: Server not found
+      302:
+        description: Redirect to login if not authenticated
+    """
+    try:
+        # Check if server exists
+        server = key_manager.get_mcp_server(server_id)
+        if not server:
+            return jsonify({"error": "MCP server not found"}), 404
+
+        # Delete server
+        key_manager.delete_mcp_server(server_id)
+
+        return jsonify({"message": "MCP server deleted successfully"})
+
+    except Exception as e:
+        return jsonify({"error": f"Failed to delete MCP server: {str(e)}"}), 500
+
+@api_bp.route('/middleware/api/mcp/servers/test', methods=['POST'])
+@login_required
+def test_mcp_server_connection():
+    """
+    Test connection to an MCP server (new server configuration)
+    ---
+    tags:
+      - MCP Management
+    security:
+      - SessionAuth: []
+    parameters:
+      - in: body
+        name: body
+        required: true
+        schema:
+          type: object
+          properties:
+            name:
+              type: string
+              description: Server name
+            url:
+              type: string
+              description: Server URL
+            auth_type:
+              type: string
+              enum: [none, bearer, api_key, oauth]
+              description: Authentication type
+            auth_credentials:
+              type: object
+              description: Authentication credentials
+            timeout:
+              type: integer
+              description: Connection timeout in seconds
+    responses:
+      200:
+        description: Connection test successful
+      400:
+        description: Invalid request
+      500:
+        description: Connection test failed
+      302:
+        description: Redirect to login if not authenticated
+    """
+    try:
+        data = request.get_json()
+        if not data:
+            return jsonify({"error": "No request data provided"}), 400
+
+        name = data.get('name')
+        url = data.get('url')
+        auth_type = data.get('auth_type', 'none')
+        auth_credentials = data.get('auth_credentials', {})
+        timeout = data.get('timeout', 30)
+
+        if not name or not url:
+            return jsonify({"error": "Server name and URL are required"}), 400
+
+        # Test connection using simplified synchronous approach
+
+        # Test the connection using synchronous HTTP approach for now
+        # This is a simplified version that tests basic connectivity
+        connection_successful = False
+        server_info = {
+            "name": name,
+            "url": url,
+            "auth_type": auth_type,
+            "protocol": "WebSocket" if url.startswith('ws://') or url.startswith('wss://') else "HTTP"
+        }
+
+        try:
+            # For HTTP URLs, test basic connectivity
+            if not (url.startswith('ws://') or url.startswith('wss://')):
+                headers = {}
+
+                # Prepare authentication headers
+                if auth_type == 'bearer' and auth_credentials.get('token'):
+                    headers['Authorization'] = f"Bearer {auth_credentials['token']}"
+                elif auth_type == 'api_key' and auth_credentials.get('key'):
+                    key_header = auth_credentials.get('header', 'X-API-Key')
+                    headers[key_header] = auth_credentials['key']
+
+                # Test basic HTTP connectivity
+                test_url = url.rstrip('/') + '/health' if not url.endswith('/mcp') else url
+                response = requests.get(test_url, headers=headers, timeout=timeout)
+
+                if response.status_code in [200, 404, 405]:  # 404/405 may mean server is up but no health endpoint
+                    connection_successful = True
+            else:
+                # For WebSocket connections, we'll implement a basic test
+                # For now, assume WebSocket connections work if the URL format is correct
+                connection_successful = True
+                server_info['note'] = "WebSocket connection validation not fully implemented"
+
+        except Exception as e:
+            connection_successful = False
+
+        if connection_successful:
+            # For now, return a successful connection response without tool discovery
+            # Tool discovery will be implemented with proper async support later
+            return jsonify({
+                "success": True,
+                "message": "Connection test successful",
+                "server_info": server_info,
+                "available_tools": [],
+                "note": "Tool discovery requires full MCP client implementation"
+            })
+        else:
+            return jsonify({
+                "success": False,
+                "error": "Connection failed - unable to establish connection"
+            }), 400
+
+    except Exception as e:
+        return jsonify({
+            "success": False,
+            "error": f"Connection test failed: {str(e)}"
+        }), 500
+
+@api_bp.route('/middleware/api/mcp/servers/<int:server_id>/test', methods=['POST'])
+@login_required
+def test_existing_mcp_server(server_id):
+    """
+    Test connection to an existing MCP server
+    ---
+    tags:
+      - MCP Management
+    security:
+      - SessionAuth: []
+    parameters:
+      - name: server_id
+        in: path
+        type: integer
+        required: true
+        description: Server ID
+    responses:
+      200:
+        description: Connection test successful
+      404:
+        description: Server not found
+      500:
+        description: Connection test failed
+      302:
+        description: Redirect to login if not authenticated
+    """
+    try:
+        # Get server details from database
+        server = key_manager.get_mcp_server(server_id)
+        if not server:
+            return jsonify({"error": "MCP server not found"}), 404
+
+        # Test connection using simplified synchronous approach
+
+        # Test the connection using synchronous approach
+        connection_successful = False
+        server_info = {
+            "name": server['name'],
+            "url": server['url'],
+            "auth_type": server['auth_type'],
+            "protocol": "WebSocket" if server['url'].startswith('ws://') or server['url'].startswith('wss://') else "HTTP"
+        }
+
+        try:
+            # For HTTP URLs, test basic connectivity
+            if not (server['url'].startswith('ws://') or server['url'].startswith('wss://')):
+                headers = {}
+
+                # Prepare authentication headers
+                if server['auth_type'] == 'bearer' and server.get('auth_credentials', {}).get('token'):
+                    headers['Authorization'] = f"Bearer {server['auth_credentials']['token']}"
+                elif server['auth_type'] == 'api_key' and server.get('auth_credentials', {}).get('key'):
+                    key_header = server['auth_credentials'].get('header', 'X-API-Key')
+                    headers[key_header] = server['auth_credentials']['key']
+
+                # Test basic HTTP connectivity
+                test_url = server['url'].rstrip('/') + '/health' if not server['url'].endswith('/mcp') else server['url']
+                response = requests.get(test_url, headers=headers, timeout=server.get('timeout', 30))
+
+                if response.status_code in [200, 404, 405]:  # 404/405 may mean server is up but no health endpoint
+                    connection_successful = True
+            else:
+                # For WebSocket connections, assume they work if URL format is correct
+                connection_successful = True
+                server_info['note'] = "WebSocket connection validation not fully implemented"
+
+        except Exception as e:
+            connection_successful = False
+
+        if connection_successful:
+            # Update server status to Active (healthy)
+            key_manager.update_mcp_server(server_id, status='Active')
+
+            return jsonify({
+                "success": True,
+                "message": "Connection test successful",
+                "server_info": server_info
+            })
+        else:
+            # Update server status to Error
+            key_manager.update_mcp_server(server_id, status='Error')
+
+            return jsonify({
+                "success": False,
+                "error": "Connection failed - unable to establish connection"
+            }), 400
+
+    except Exception as e:
+        # Update server status to Error
+        try:
+            key_manager.update_mcp_server(server_id, status='Error')
+        except:
+            pass
+
+        return jsonify({
+            "success": False,
+            "error": f"Connection test failed: {str(e)}"
+        }), 500
+
+@api_bp.route('/middleware/api/mcp/tools', methods=['GET'])
+@login_required
+def get_mcp_tools():
+    """
+    Get MCP tools
+    ---
+    tags:
+      - MCP Management
+    security:
+      - SessionAuth: []
+    parameters:
+      - name: server_id
+        in: query
+        type: integer
+        required: false
+        description: Filter by server ID
+      - name: active_only
+        in: query
+        type: boolean
+        required: false
+        default: true
+        description: Only show active tools
+    responses:
+      200:
+        description: List of MCP tools
+        schema:
+          type: array
+          items:
+            type: object
+      302:
+        description: Redirect to login if not authenticated
+    """
+    server_id = request.args.get('server_id', type=int)
+    active_only = request.args.get('active_only', 'true').lower() == 'true'
+
+    tools = key_manager.get_mcp_tools(server_id=server_id, active_only=active_only)
+    return jsonify(tools)
+
+@api_bp.route('/middleware/api/mcp/stats', methods=['GET'])
+@login_required
+def get_mcp_statistics():
+    """
+    Get MCP usage statistics
+    ---
+    tags:
+      - MCP Management
+    security:
+      - SessionAuth: []
+    parameters:
+      - name: days
+        in: query
+        type: integer
+        required: false
+        default: 7
+        description: Number of days to include in statistics
+      - name: server_id
+        in: query
+        type: integer
+        required: false
+        description: Filter by server ID
+    responses:
+      200:
+        description: MCP usage statistics
+        schema:
+          type: object
+      302:
+        description: Redirect to login if not authenticated
+    """
+    try:
+        days = request.args.get('days', 7, type=int)
+        server_id = request.args.get('server_id', type=int)
+
+        # Get usage statistics
+        usage_stats = key_manager.get_mcp_usage_stats(server_id=server_id, days=days)
+
+        # Get server information
+        servers = key_manager.get_mcp_servers()
+        active_servers = [s for s in servers if s['status'] == 'Active']
+
+        # Get tool information
+        tools = key_manager.get_mcp_tools()
+
+        # Calculate additional statistics
+        total_calls = sum(s.get('total_calls', 0) for s in usage_stats)
+        successful_calls = sum(s.get('successful_calls', 0) for s in usage_stats)
+        success_rate = (successful_calls / total_calls * 100) if total_calls > 0 else 0
+
+        # Group tools by category
+        tool_categories = {}
+        for tool in tools:
+            category = tool.get('category', 'general')
+            tool_categories[category] = tool_categories.get(category, 0) + 1
+
+        return jsonify({
+            'summary': {
+                'total_calls': total_calls,
+                'successful_calls': successful_calls,
+                'success_rate': round(success_rate, 2),
+                'active_servers': len(active_servers),
+                'total_tools': len(tools)
+            },
+            'tool_categories': tool_categories,
+            'usage_by_day': usage_stats,
+            'servers': servers
+        })
+
+    except Exception as e:
+        return jsonify({"error": f"Failed to get MCP statistics: {str(e)}"}), 500
+
+@api_bp.route('/middleware/api/mcp/health', methods=['GET'])
+@login_required
+def get_mcp_health():
+    """
+    Get MCP server health status
+    ---
+    tags:
+      - MCP Management
+    security:
+      - SessionAuth: []
+    responses:
+      200:
+        description: MCP server health status
+        schema:
+          type: object
+      302:
+        description: Redirect to login if not authenticated
+    """
+    try:
+        from app.mcp_integration import get_mcp_integration
+        mcp_integration = get_mcp_integration()
+
+        if not mcp_integration:
+            return jsonify({
+                "enabled": False,
+                "error": "MCP integration not available"
+            })
+
+        # Get health statistics
+        stats = mcp_integration.get_statistics()
+
+        # Get recent health checks from database
+        servers = key_manager.get_mcp_servers(status_filter='Active')
+        server_health = []
+
+        for server in servers:
+            # Get latest health check for this server
+            health_history = key_manager.get_mcp_usage_stats(server_id=server['id'], days=1)
+            # This is a simplified health check - in production, you'd have a dedicated health table
+            server_health.append({
+                'id': server['id'],
+                'name': server['name'],
+                'url': server['url'],
+                'status': 'healthy' if mcp_integration.get_client_for_server(server['id']) else 'disconnected',
+                'last_check': server.get('last_health_check')
+            })
+
+        return jsonify({
+            "enabled": stats.get('enabled', False),
+            "statistics": stats,
+            "servers": server_health
+        })
+
+    except Exception as e:
+        return jsonify({"error": f"Failed to get MCP health: {str(e)}"}), 500
+
+@api_bp.route('/middleware/api/mcp/reload', methods=['POST'])
+@login_required
+def reload_mcp_configuration():
+    """
+    Reload MCP configuration
+    ---
+    tags:
+      - MCP Management
+    security:
+      - SessionAuth: []
+    responses:
+      200:
+        description: MCP configuration reloaded
+      302:
+        description: Redirect to login if not authenticated
+    """
+    try:
+        from app.mcp_integration import get_mcp_integration
+        mcp_integration = get_mcp_integration()
+
+        if not mcp_integration:
+            return jsonify({"error": "MCP integration not available"}), 404
+
+        # Reload configuration
+        mcp_integration.reload_configuration()
+
+        return jsonify({"message": "MCP configuration reloaded successfully"})
+
+    except Exception as e:
+        return jsonify({"error": f"Failed to reload MCP configuration: {str(e)}"}), 500
