@@ -19,15 +19,42 @@ session = requests.Session()
 
 def configure_session_timeout(connect_timeout=10, read_timeout=60):
     """Configure session with dynamic timeout settings"""
+    # Get retry settings from configuration
+    retry_total = key_manager.get_setting('retry_total', '7')
+    retry_backoff_factor = key_manager.get_setting('retry_backoff_factor', '0.1')
+    pool_connections = key_manager.get_setting('pool_connections', '20')
+    pool_maxsize = key_manager.get_setting('pool_maxsize', '100')
+
+    # Convert to appropriate types with fallbacks
+    try:
+        retry_total = int(retry_total)
+    except (ValueError, TypeError):
+        retry_total = 7
+
+    try:
+        retry_backoff_factor = float(retry_backoff_factor)
+    except (ValueError, TypeError):
+        retry_backoff_factor = 0.1
+
+    try:
+        pool_connections = int(pool_connections)
+    except (ValueError, TypeError):
+        pool_connections = 20
+
+    try:
+        pool_maxsize = int(pool_maxsize)
+    except (ValueError, TypeError):
+        pool_maxsize = 100
+
     retry_strategy = Retry(
-        total=7,  # Increased from 3 for better reliability
-        backoff_factor=0.1,
+        total=retry_total,
+        backoff_factor=retry_backoff_factor,
         status_forcelist=[429, 500, 502, 503, 504],
         allowed_methods=["HEAD", "GET", "POST", "PUT", "DELETE", "OPTIONS", "TRACE"]
     )
     adapter = HTTPAdapter(
-        pool_connections=20,
-        pool_maxsize=100,
+        pool_connections=pool_connections,
+        pool_maxsize=pool_maxsize,
         max_retries=retry_strategy
     )
     session.mount("http://", adapter)
@@ -39,13 +66,26 @@ def configure_session_timeout(connect_timeout=10, read_timeout=60):
 # Initialize with default timeouts
 configure_session_timeout()
 
-def stream_with_retry(resp, buffer_size, streaming_timeout, max_stream_retries=2):
+def stream_with_retry(resp, buffer_size, streaming_timeout, max_stream_retries=None):
     """
     Stream content with retry logic for failed chunks.
     Returns a generator that yields chunks with retry capability.
     """
+    # Get stream retry settings from configuration
+    if max_stream_retries is None:
+        max_stream_retries_setting = key_manager.get_setting('max_stream_retries', '2')
+        try:
+            max_stream_retries = int(max_stream_retries_setting)
+        except (ValueError, TypeError):
+            max_stream_retries = 2
+
+    chunk_retry_delay_setting = key_manager.get_setting('chunk_retry_delay', '1.0')
+    try:
+        chunk_retry_delay = float(chunk_retry_delay_setting)
+    except (ValueError, TypeError):
+        chunk_retry_delay = 1.0
+
     retry_count = 0
-    chunk_retry_delay = 1.0  # Start with 1 second delay
 
     def stream_generator():
         nonlocal retry_count, chunk_retry_delay
@@ -84,24 +124,40 @@ def stream_with_retry(resp, buffer_size, streaming_timeout, max_stream_retries=2
 
 # Performance optimization: Cache for model discovery responses
 _model_cache = {}
-_cache_timeout = 300  # 5 minutes TTL
+
+def get_cache_timeout():
+    """Get cache timeout from settings"""
+    cache_timeout_setting = key_manager.get_setting('cache_timeout', '300')
+    try:
+        return int(cache_timeout_setting)
+    except (ValueError, TypeError):
+        return 300
 
 def get_cached_models_list(api_key, path):
-    """Cache model list responses for 5 minutes to reduce API calls"""
+    """Cache model list responses for configurable time to reduce API calls"""
     cache_key = f"{api_key}:{path}"
     current_time = time.time()
+    cache_timeout = get_cache_timeout()
 
     # Check if we have a cached response that's still valid
     if cache_key in _model_cache:
         cached_data, timestamp = _model_cache[cache_key]
-        if current_time - timestamp < _cache_timeout:
+        if current_time - timestamp < cache_timeout:
             return cached_data
 
     # If not cached or expired, fetch new data
     try:
         headers = {'x-goog-api-key': api_key, 'Content-Type': 'application/json'}
         url = f"https://generativelanguage.googleapis.com/{path}"
-        resp = session.get(url, headers=headers, timeout=10)
+
+        # Get model cache timeout from settings
+        model_cache_timeout_setting = key_manager.get_setting('model_cache_timeout', '10')
+        try:
+            model_cache_timeout = int(model_cache_timeout_setting)
+        except (ValueError, TypeError):
+            model_cache_timeout = 10
+
+        resp = session.get(url, headers=headers, timeout=model_cache_timeout)
         if resp.ok:
             data = resp.json()
             _model_cache[cache_key] = (data, current_time)
@@ -502,15 +558,54 @@ def proxy(path):
             content_type = headers.get('Content-Type', '')
             request_size = len(request_data) if request_data else 0
 
+            # Get buffer optimization thresholds from settings
+            small_request_threshold = key_manager.get_setting('small_request_threshold', '1024')
+            large_request_threshold = key_manager.get_setting('large_request_threshold', '100000')
+            small_buffer_size = key_manager.get_setting('small_buffer_size', '4096')
+            large_buffer_size = key_manager.get_setting('large_buffer_size', '16384')
+            min_buffer_size = key_manager.get_setting('min_buffer_size', '1024')
+            max_buffer_size = key_manager.get_setting('max_buffer_size', '65536')
+
+            # Convert to appropriate types with fallbacks
+            try:
+                small_request_threshold = int(small_request_threshold)
+            except (ValueError, TypeError):
+                small_request_threshold = 1024
+
+            try:
+                large_request_threshold = int(large_request_threshold)
+            except (ValueError, TypeError):
+                large_request_threshold = 100000
+
+            try:
+                small_buffer_size = int(small_buffer_size)
+            except (ValueError, TypeError):
+                small_buffer_size = 4096
+
+            try:
+                large_buffer_size = int(large_buffer_size)
+            except (ValueError, TypeError):
+                large_buffer_size = 16384
+
+            try:
+                min_buffer_size = int(min_buffer_size)
+            except (ValueError, TypeError):
+                min_buffer_size = 1024
+
+            try:
+                max_buffer_size = int(max_buffer_size)
+            except (ValueError, TypeError):
+                max_buffer_size = 65536
+
             # Smaller buffers for small requests or text responses
-            if request_size < 1024 or 'text/' in content_type:
-                buffer_size = min(buffer_size, 4096)
+            if request_size < small_request_threshold or 'text/' in content_type:
+                buffer_size = min(buffer_size, small_buffer_size)
             # Larger buffers for binary/large content
-            elif request_size > 100000 or 'application/octet-stream' in content_type:
-                buffer_size = max(buffer_size, 16384)
+            elif request_size > large_request_threshold or 'application/octet-stream' in content_type:
+                buffer_size = max(buffer_size, large_buffer_size)
 
             # Ensure buffer size is within reasonable bounds
-            buffer_size = max(1024, min(buffer_size, 65536))
+            buffer_size = max(min_buffer_size, min(buffer_size, max_buffer_size))
 
             add_log_entry(f"Using optimized buffer size: {buffer_size} bytes (request: {request_size} bytes)", "text-gray-400")
 
@@ -571,14 +666,20 @@ def proxy(path):
 
                         try:
                             # Use stream_with_retry for robust streaming with retries
-                            for chunk in stream_with_retry(resp, buffer_size, streaming_timeout, max_stream_retries=2):
+                            for chunk in stream_with_retry(resp, buffer_size, streaming_timeout):
                                 if chunk:
                                     # Yield chunk immediately for streaming
                                     yield chunk
 
-                                    # Performance optimization: Only buffer first 2KB for token extraction
-                                    if json_buffer_size < 2048:
-                                        remaining = 2048 - json_buffer_size
+                                    # Performance optimization: Only buffer configurable size for token extraction
+                                    json_buffer_limit_setting = key_manager.get_setting('json_buffer_limit', '2048')
+                                    try:
+                                        json_buffer_limit = int(json_buffer_limit_setting)
+                                    except (ValueError, TypeError):
+                                        json_buffer_limit = 2048
+
+                                    if json_buffer_size < json_buffer_limit:
+                                        remaining = json_buffer_limit - json_buffer_size
                                         json_start_buffer += chunk[:remaining]
                                         json_buffer_size += len(chunk)
                         except Exception as e:
@@ -666,7 +767,7 @@ def proxy(path):
                         response_closed = False
                         try:
                             # Use stream_with_retry for robust error streaming with retries
-                            for chunk in stream_with_retry(resp, buffer_size, streaming_timeout, max_stream_retries=2):
+                            for chunk in stream_with_retry(resp, buffer_size, streaming_timeout):
                                 if chunk:
                                     yield chunk
                         except Exception as e:

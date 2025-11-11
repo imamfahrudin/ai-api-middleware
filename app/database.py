@@ -449,6 +449,30 @@ class KeyManager:
             'model_cache_enabled': 'true',
             'max_retries': '7',
             'request_timeout': '30',
+            'connect_timeout': '10',
+            'read_timeout': '60',
+            'streaming_timeout': '120',
+
+            # Connection & Retry Settings
+            'retry_total': '7',
+            'retry_backoff_factor': '0.1',
+            'pool_connections': '20',
+            'pool_maxsize': '100',
+            'max_stream_retries': '2',
+            'chunk_retry_delay': '1.0',
+
+            # Cache Settings
+            'cache_timeout': '300',
+            'model_cache_timeout': '10',
+
+            # Buffer Optimization Settings
+            'small_request_threshold': '1024',
+            'large_request_threshold': '100000',
+            'small_buffer_size': '4096',
+            'large_buffer_size': '16384',
+            'min_buffer_size': '1024',
+            'max_buffer_size': '65536',
+            'json_buffer_limit': '2048',
 
             # Logging & Monitoring Settings
             'enable_request_logging': 'true',

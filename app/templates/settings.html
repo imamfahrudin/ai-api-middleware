@@ -84,12 +84,26 @@
                     <div class="flex items-center justify-between">
                         <div>
                             <h3 class="text-white font-medium">Model Discovery Caching</h3>
-                            <p class="text-gray-400 text-sm">Cache model list responses for 5 minutes</p>
+                            <p class="text-gray-400 text-sm">Cache model list responses for configurable time</p>
                         </div>
                         <label class="relative inline-flex items-center cursor-pointer">
                             <input type="checkbox" id="model-cache-toggle" class="sr-only peer" checked>
                             <div class="w-11 h-6 bg-gray-600 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
                         </label>
+                    </div>
+
+                    <!-- Cache Timeout -->
+                    <div>
+                        <h3 class="text-white font-medium mb-2">Cache Timeout (seconds)</h3>
+                        <p class="text-gray-400 text-sm mb-3">How long to cache model list responses</p>
+                        <input type="number" id="cache-timeout-input" class="w-full bg-gray-700 text-white rounded-md p-2 border border-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500" value="300" min="60" max="3600">
+                    </div>
+
+                    <!-- Model Cache Timeout -->
+                    <div>
+                        <h3 class="text-white font-medium mb-2">Model Cache Request Timeout (seconds)</h3>
+                        <p class="text-gray-400 text-sm mb-3">Timeout for model cache API requests</p>
+                        <input type="number" id="model-cache-timeout-input" class="w-full bg-gray-700 text-white rounded-md p-2 border border-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500" value="10" min="5" max="60">
                     </div>
                 </div>
             </div>
@@ -121,6 +135,81 @@
                         <h3 class="text-white font-medium mb-2">Request Timeout (seconds)</h3>
                         <p class="text-gray-400 text-sm mb-3">Maximum time to wait for a response from upstream API</p>
                         <input type="number" id="request-timeout-input" class="w-full bg-gray-700 text-white rounded-md p-2 border border-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500" value="30" min="5" max="300">
+                    </div>
+
+                    <!-- Connect Timeout -->
+                    <div>
+                        <h3 class="text-white font-medium mb-2">Connect Timeout (seconds)</h3>
+                        <p class="text-gray-400 text-sm mb-3">Maximum time to establish connection to upstream API</p>
+                        <input type="number" id="connect-timeout-input" class="w-full bg-gray-700 text-white rounded-md p-2 border border-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500" value="10" min="1" max="60">
+                    </div>
+
+                    <!-- Read Timeout -->
+                    <div>
+                        <h3 class="text-white font-medium mb-2">Read Timeout (seconds)</h3>
+                        <p class="text-gray-400 text-sm mb-3">Maximum time to wait for data from upstream API</p>
+                        <input type="number" id="read-timeout-input" class="w-full bg-gray-700 text-white rounded-md p-2 border border-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500" value="60" min="5" max="300">
+                    </div>
+
+                    <!-- Streaming Timeout -->
+                    <div>
+                        <h3 class="text-white font-medium mb-2">Streaming Timeout (seconds)</h3>
+                        <p class="text-gray-400 text-sm mb-3">Maximum time to wait for streaming data chunks</p>
+                        <input type="number" id="streaming-timeout-input" class="w-full bg-gray-700 text-white rounded-md p-2 border border-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500" value="120" min="10" max="600">
+                    </div>
+                </div>
+            </div>
+
+            <!-- Connection & Retry Settings -->
+            <div class="bg-gray-800 rounded-lg p-6 mb-6">
+                <h2 class="text-xl font-semibold text-white mb-4 flex items-center gap-2">
+                    <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                    </svg>
+                    Connection & Retry Settings
+                </h2>
+
+                <div class="space-y-4">
+                    <!-- Retry Total -->
+                    <div>
+                        <h3 class="text-white font-medium mb-2">Total Retry Attempts</h3>
+                        <p class="text-gray-400 text-sm mb-3">Maximum number of retry attempts for failed requests</p>
+                        <input type="number" id="retry-total-input" class="w-full bg-gray-700 text-white rounded-md p-2 border border-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500" value="7" min="0" max="20">
+                    </div>
+
+                    <!-- Retry Backoff Factor -->
+                    <div>
+                        <h3 class="text-white font-medium mb-2">Retry Backoff Factor</h3>
+                        <p class="text-gray-400 text-sm mb-3">Multiplier for exponential backoff between retries</p>
+                        <input type="number" id="retry-backoff-factor-input" class="w-full bg-gray-700 text-white rounded-md p-2 border border-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500" value="0.1" min="0.1" max="5" step="0.1">
+                    </div>
+
+                    <!-- Pool Connections -->
+                    <div>
+                        <h3 class="text-white font-medium mb-2">Connection Pool Size</h3>
+                        <p class="text-gray-400 text-sm mb-3">Number of connection pools to cache</p>
+                        <input type="number" id="pool-connections-input" class="w-full bg-gray-700 text-white rounded-md p-2 border border-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500" value="20" min="1" max="100">
+                    </div>
+
+                    <!-- Pool Max Size -->
+                    <div>
+                        <h3 class="text-white font-medium mb-2">Max Pool Connections</h3>
+                        <p class="text-gray-400 text-sm mb-3">Maximum number of connections to save in the pool</p>
+                        <input type="number" id="pool-maxsize-input" class="w-full bg-gray-700 text-white rounded-md p-2 border border-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500" value="100" min="1" max="1000">
+                    </div>
+
+                    <!-- Max Stream Retries -->
+                    <div>
+                        <h3 class="text-white font-medium mb-2">Max Stream Retries</h3>
+                        <p class="text-gray-400 text-sm mb-3">Maximum retry attempts for streaming chunks</p>
+                        <input type="number" id="max-stream-retries-input" class="w-full bg-gray-700 text-white rounded-md p-2 border border-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500" value="2" min="0" max="10">
+                    </div>
+
+                    <!-- Chunk Retry Delay -->
+                    <div>
+                        <h3 class="text-white font-medium mb-2">Chunk Retry Delay (seconds)</h3>
+                        <p class="text-gray-400 text-sm mb-3">Initial delay before retrying failed streaming chunks</p>
+                        <input type="number" id="chunk-retry-delay-input" class="w-full bg-gray-700 text-white rounded-md p-2 border border-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500" value="1.0" min="0.1" max="10" step="0.1">
                     </div>
                 </div>
             </div>
@@ -328,9 +417,58 @@
 
                     <!-- Buffer Size -->
                     <div>
-                        <h3 class="text-white font-medium mb-2">Buffer Size (bytes)</h3>
-                        <p class="text-gray-400 text-sm mb-3">Size of streaming buffer chunks</p>
+                        <h3 class="text-white font-medium mb-2">Default Buffer Size (bytes)</h3>
+                        <p class="text-gray-400 text-sm mb-3">Default size of streaming buffer chunks</p>
                         <input type="number" id="buffer-size-input" class="w-full bg-gray-700 text-white rounded-md p-2 border border-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500" value="8192" min="1024" max="65536" step="1024">
+                    </div>
+
+                    <!-- Small Request Threshold -->
+                    <div>
+                        <h3 class="text-white font-medium mb-2">Small Request Threshold (bytes)</h3>
+                        <p class="text-gray-400 text-sm mb-3">Request size below which smaller buffers are used</p>
+                        <input type="number" id="small-request-threshold-input" class="w-full bg-gray-700 text-white rounded-md p-2 border border-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500" value="1024" min="512" max="10240" step="512">
+                    </div>
+
+                    <!-- Large Request Threshold -->
+                    <div>
+                        <h3 class="text-white font-medium mb-2">Large Request Threshold (bytes)</h3>
+                        <p class="text-gray-400 text-sm mb-3">Request size above which larger buffers are used</p>
+                        <input type="number" id="large-request-threshold-input" class="w-full bg-gray-700 text-white rounded-md p-2 border border-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500" value="100000" min="10000" max="1000000" step="10000">
+                    </div>
+
+                    <!-- Small Buffer Size -->
+                    <div>
+                        <h3 class="text-white font-medium mb-2">Small Buffer Size (bytes)</h3>
+                        <p class="text-gray-400 text-sm mb-3">Buffer size used for small requests</p>
+                        <input type="number" id="small-buffer-size-input" class="w-full bg-gray-700 text-white rounded-md p-2 border border-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500" value="4096" min="1024" max="8192" step="512">
+                    </div>
+
+                    <!-- Large Buffer Size -->
+                    <div>
+                        <h3 class="text-white font-medium mb-2">Large Buffer Size (bytes)</h3>
+                        <p class="text-gray-400 text-sm mb-3">Buffer size used for large requests</p>
+                        <input type="number" id="large-buffer-size-input" class="w-full bg-gray-700 text-white rounded-md p-2 border border-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500" value="16384" min="8192" max="131072" step="1024">
+                    </div>
+
+                    <!-- Min/Max Buffer Size -->
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <h3 class="text-white font-medium mb-2">Min Buffer Size (bytes)</h3>
+                            <p class="text-gray-400 text-sm mb-3">Minimum allowed buffer size</p>
+                            <input type="number" id="min-buffer-size-input" class="w-full bg-gray-700 text-white rounded-md p-2 border border-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500" value="1024" min="512" max="4096" step="256">
+                        </div>
+                        <div>
+                            <h3 class="text-white font-medium mb-2">Max Buffer Size (bytes)</h3>
+                            <p class="text-gray-400 text-sm mb-3">Maximum allowed buffer size</p>
+                            <input type="number" id="max-buffer-size-input" class="w-full bg-gray-700 text-white rounded-md p-2 border border-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500" value="65536" min="16384" max="1048576" step="1024">
+                        </div>
+                    </div>
+
+                    <!-- JSON Buffer Limit -->
+                    <div>
+                        <h3 class="text-white font-medium mb-2">JSON Buffer Limit (bytes)</h3>
+                        <p class="text-gray-400 text-sm mb-3">Amount of streaming response to buffer for token extraction</p>
+                        <input type="number" id="json-buffer-limit-input" class="w-full bg-gray-700 text-white rounded-md p-2 border border-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500" value="2048" min="1024" max="16384" step="256">
                     </div>
 
                     <!-- Max Concurrent Requests -->
@@ -378,6 +516,28 @@
             model_cache_enabled: true,
             max_retries: 7,
             request_timeout: 30,
+            connect_timeout: 10,
+            read_timeout: 60,
+            streaming_timeout: 120,
+            cache_timeout: 300,
+            model_cache_timeout: 10,
+
+            // Connection & Retry Settings
+            retry_total: 7,
+            retry_backoff_factor: 0.1,
+            pool_connections: 20,
+            pool_maxsize: 100,
+            max_stream_retries: 2,
+            chunk_retry_delay: 1.0,
+
+            // Buffer Optimization Settings
+            small_request_threshold: 1024,
+            large_request_threshold: 100000,
+            small_buffer_size: 4096,
+            large_buffer_size: 16384,
+            min_buffer_size: 1024,
+            max_buffer_size: 65536,
+            json_buffer_limit: 2048,
 
             // Logging & Monitoring Settings
             enable_request_logging: true,
@@ -445,6 +605,28 @@
             document.getElementById('model-cache-toggle').checked = currentSettings.model_cache_enabled;
             document.getElementById('max-retries-select').value = currentSettings.max_retries;
             document.getElementById('request-timeout-input').value = currentSettings.request_timeout;
+            document.getElementById('connect-timeout-input').value = currentSettings.connect_timeout;
+            document.getElementById('read-timeout-input').value = currentSettings.read_timeout;
+            document.getElementById('streaming-timeout-input').value = currentSettings.streaming_timeout;
+            document.getElementById('cache-timeout-input').value = currentSettings.cache_timeout;
+            document.getElementById('model-cache-timeout-input').value = currentSettings.model_cache_timeout;
+
+            // Connection & Retry Settings
+            document.getElementById('retry-total-input').value = currentSettings.retry_total;
+            document.getElementById('retry-backoff-factor-input').value = currentSettings.retry_backoff_factor;
+            document.getElementById('pool-connections-input').value = currentSettings.pool_connections;
+            document.getElementById('pool-maxsize-input').value = currentSettings.pool_maxsize;
+            document.getElementById('max-stream-retries-input').value = currentSettings.max_stream_retries;
+            document.getElementById('chunk-retry-delay-input').value = currentSettings.chunk_retry_delay;
+
+            // Buffer Optimization Settings
+            document.getElementById('small-request-threshold-input').value = currentSettings.small_request_threshold;
+            document.getElementById('large-request-threshold-input').value = currentSettings.large_request_threshold;
+            document.getElementById('small-buffer-size-input').value = currentSettings.small_buffer_size;
+            document.getElementById('large-buffer-size-input').value = currentSettings.large_buffer_size;
+            document.getElementById('min-buffer-size-input').value = currentSettings.min_buffer_size;
+            document.getElementById('max-buffer-size-input').value = currentSettings.max_buffer_size;
+            document.getElementById('json-buffer-limit-input').value = currentSettings.json_buffer_limit;
 
             // Logging & Monitoring Settings
             document.getElementById('enable-request-logging-toggle').checked = currentSettings.enable_request_logging;
@@ -482,6 +664,28 @@
                 model_cache_enabled: document.getElementById('model-cache-toggle').checked,
                 max_retries: parseInt(document.getElementById('max-retries-select').value),
                 request_timeout: parseInt(document.getElementById('request-timeout-input').value),
+                connect_timeout: parseInt(document.getElementById('connect-timeout-input').value),
+                read_timeout: parseInt(document.getElementById('read-timeout-input').value),
+                streaming_timeout: parseInt(document.getElementById('streaming-timeout-input').value),
+                cache_timeout: parseInt(document.getElementById('cache-timeout-input').value),
+                model_cache_timeout: parseInt(document.getElementById('model-cache-timeout-input').value),
+
+                // Connection & Retry Settings
+                retry_total: parseInt(document.getElementById('retry-total-input').value),
+                retry_backoff_factor: parseFloat(document.getElementById('retry-backoff-factor-input').value),
+                pool_connections: parseInt(document.getElementById('pool-connections-input').value),
+                pool_maxsize: parseInt(document.getElementById('pool-maxsize-input').value),
+                max_stream_retries: parseInt(document.getElementById('max-stream-retries-input').value),
+                chunk_retry_delay: parseFloat(document.getElementById('chunk-retry-delay-input').value),
+
+                // Buffer Optimization Settings
+                small_request_threshold: parseInt(document.getElementById('small-request-threshold-input').value),
+                large_request_threshold: parseInt(document.getElementById('large-request-threshold-input').value),
+                small_buffer_size: parseInt(document.getElementById('small-buffer-size-input').value),
+                large_buffer_size: parseInt(document.getElementById('large-buffer-size-input').value),
+                min_buffer_size: parseInt(document.getElementById('min-buffer-size-input').value),
+                max_buffer_size: parseInt(document.getElementById('max-buffer-size-input').value),
+                json_buffer_limit: parseInt(document.getElementById('json-buffer-limit-input').value),
 
                 // Logging & Monitoring Settings
                 enable_request_logging: document.getElementById('enable-request-logging-toggle').checked,
