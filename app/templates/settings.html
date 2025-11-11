@@ -6,6 +6,69 @@
     <title>Settings - AI API Middleware</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}">
+    <style>
+        .info-icon {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            background-color: #6b7280;
+            color: white;
+            font-size: 10px;
+            font-weight: bold;
+            cursor: help;
+            margin-left: 8px;
+            transition: background-color 0.2s;
+        }
+        .info-icon:hover {
+            background-color: #9ca3af;
+        }
+        .tooltip {
+            position: relative;
+            display: inline-block;
+        }
+        .tooltip .tooltiptext {
+            visibility: hidden;
+            width: 300px;
+            background-color: #1f2937;
+            color: #f9fafb;
+            text-align: left;
+            border-radius: 6px;
+            padding: 8px 12px;
+            position: absolute;
+            z-index: 1000;
+            bottom: 125%;
+            left: 50%;
+            margin-left: -150px;
+            opacity: 0;
+            transition: opacity 0.3s;
+            font-size: 12px;
+            line-height: 1.4;
+            border: 1px solid #374151;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+        }
+        .tooltip .tooltiptext::after {
+            content: "";
+            position: absolute;
+            top: 100%;
+            left: 50%;
+            margin-left: -5px;
+            border-width: 5px;
+            border-style: solid;
+            border-color: #1f2937 transparent transparent transparent;
+        }
+        .tooltip:hover .tooltiptext {
+            visibility: visible;
+            opacity: 1;
+        }
+        .field-header {
+            display: flex;
+            align-items: center;
+            margin-bottom: 0.5rem;
+        }
+    </style>
 </head>
 <body class="flex h-screen overflow-hidden">
     <aside class="sidebar w-1/4 h-full p-4 flex flex-col">
@@ -58,11 +121,17 @@
                 <div class="space-y-4">
                     <!-- Streaming Toggle -->
                     <div class="flex items-center justify-between">
-                        <div>
-                            <h3 class="text-white font-medium">Response Streaming</h3>
+                        <div class="flex-1">
+                            <div class="field-header">
+                                <h3 class="text-white font-medium">Response Streaming</h3>
+                                <div class="tooltip">
+                                    <div class="info-icon">i</div>
+                                    <span class="tooltiptext">Enables streaming responses from the upstream API, reducing memory usage and improving response times for large content. When enabled, responses are sent in chunks rather than buffered entirely.</span>
+                                </div>
+                            </div>
                             <p class="text-gray-400 text-sm">Stream responses for lower memory usage and reduced latency</p>
                         </div>
-                        <label class="relative inline-flex items-center cursor-pointer">
+                        <label class="relative inline-flex items-center cursor-pointer ml-4">
                             <input type="checkbox" id="streaming-toggle" class="sr-only peer" checked>
                             <div class="w-11 h-6 bg-gray-600 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
                         </label>
@@ -70,11 +139,17 @@
 
                     <!-- Connection Pooling Toggle -->
                     <div class="flex items-center justify-between">
-                        <div>
-                            <h3 class="text-white font-medium">Connection Pooling</h3>
+                        <div class="flex-1">
+                            <div class="field-header">
+                                <h3 class="text-white font-medium">Connection Pooling</h3>
+                                <div class="tooltip">
+                                    <div class="info-icon">i</div>
+                                    <span class="tooltiptext">Reuses HTTP connections across requests to improve performance and reduce connection overhead. Uses a session-based connection pool when enabled.</span>
+                                </div>
+                            </div>
                             <p class="text-gray-400 text-sm">Reuse HTTP connections for better performance</p>
                         </div>
-                        <label class="relative inline-flex items-center cursor-pointer">
+                        <label class="relative inline-flex items-center cursor-pointer ml-4">
                             <input type="checkbox" id="connection-pooling-toggle" class="sr-only peer" checked>
                             <div class="w-11 h-6 bg-gray-600 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
                         </label>
@@ -82,11 +157,17 @@
 
                     <!-- Model Discovery Caching Toggle -->
                     <div class="flex items-center justify-between">
-                        <div>
-                            <h3 class="text-white font-medium">Model Discovery Caching</h3>
+                        <div class="flex-1">
+                            <div class="field-header">
+                                <h3 class="text-white font-medium">Model Discovery Caching</h3>
+                                <div class="tooltip">
+                                    <div class="info-icon">i</div>
+                                    <span class="tooltiptext">Caches responses from model list API calls to reduce upstream requests. Cached responses are stored for the configured timeout period.</span>
+                                </div>
+                            </div>
                             <p class="text-gray-400 text-sm">Cache model list responses for configurable time</p>
                         </div>
-                        <label class="relative inline-flex items-center cursor-pointer">
+                        <label class="relative inline-flex items-center cursor-pointer ml-4">
                             <input type="checkbox" id="model-cache-toggle" class="sr-only peer" checked>
                             <div class="w-11 h-6 bg-gray-600 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
                         </label>
@@ -94,14 +175,26 @@
 
                     <!-- Cache Timeout -->
                     <div>
-                        <h3 class="text-white font-medium mb-2">Cache Timeout (seconds)</h3>
+                        <div class="field-header">
+                            <h3 class="text-white font-medium">Cache Timeout (seconds)</h3>
+                            <div class="tooltip">
+                                <div class="info-icon">i</div>
+                                <span class="tooltiptext">How long to cache model list responses before fetching fresh data from the upstream API. Longer timeouts reduce API calls but may serve stale data.</span>
+                            </div>
+                        </div>
                         <p class="text-gray-400 text-sm mb-3">How long to cache model list responses</p>
                         <input type="number" id="cache-timeout-input" class="w-full bg-gray-700 text-white rounded-md p-2 border border-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500" value="300" min="60" max="3600">
                     </div>
 
                     <!-- Model Cache Timeout -->
                     <div>
-                        <h3 class="text-white font-medium mb-2">Model Cache Request Timeout (seconds)</h3>
+                        <div class="field-header">
+                            <h3 class="text-white font-medium">Model Cache Request Timeout (seconds)</h3>
+                            <div class="tooltip">
+                                <div class="info-icon">i</div>
+                                <span class="tooltiptext">Timeout for individual model cache API requests. This is separate from the cache duration and applies to the network request itself.</span>
+                            </div>
+                        </div>
                         <p class="text-gray-400 text-sm mb-3">Timeout for model cache API requests</p>
                         <input type="number" id="model-cache-timeout-input" class="w-full bg-gray-700 text-white rounded-md p-2 border border-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500" value="10" min="5" max="60">
                     </div>
@@ -120,7 +213,13 @@
                 <div class="space-y-4">
                     <!-- Max Retries -->
                     <div>
-                        <h3 class="text-white font-medium mb-2">Maximum Retry Attempts</h3>
+                        <div class="field-header">
+                            <h3 class="text-white font-medium">Maximum Retry Attempts</h3>
+                            <div class="tooltip">
+                                <div class="info-icon">i</div>
+                                <span class="tooltiptext">Number of times to retry failed requests with different API keys before giving up. Higher values increase reliability but may slow down responses.</span>
+                            </div>
+                        </div>
                         <p class="text-gray-400 text-sm mb-3">Number of times to retry failed requests with different API keys</p>
                         <select id="max-retries-select" class="w-full bg-gray-700 text-white rounded-md p-2 border border-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500">
                             <option value="3">3 retries</option>
@@ -132,28 +231,52 @@
 
                     <!-- Request Timeout -->
                     <div>
-                        <h3 class="text-white font-medium mb-2">Request Timeout (seconds)</h3>
+                        <div class="field-header">
+                            <h3 class="text-white font-medium">Request Timeout (seconds)</h3>
+                            <div class="tooltip">
+                                <div class="info-icon">i</div>
+                                <span class="tooltiptext">Maximum time to wait for a complete response from the upstream API. This includes connection time and data transfer time.</span>
+                            </div>
+                        </div>
                         <p class="text-gray-400 text-sm mb-3">Maximum time to wait for a response from upstream API</p>
                         <input type="number" id="request-timeout-input" class="w-full bg-gray-700 text-white rounded-md p-2 border border-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500" value="30" min="5" max="300">
                     </div>
 
                     <!-- Connect Timeout -->
                     <div>
-                        <h3 class="text-white font-medium mb-2">Connect Timeout (seconds)</h3>
+                        <div class="field-header">
+                            <h3 class="text-white font-medium">Connect Timeout (seconds)</h3>
+                            <div class="tooltip">
+                                <div class="info-icon">i</div>
+                                <span class="tooltiptext">Maximum time to establish a connection to the upstream API server. This is separate from the overall request timeout.</span>
+                            </div>
+                        </div>
                         <p class="text-gray-400 text-sm mb-3">Maximum time to establish connection to upstream API</p>
                         <input type="number" id="connect-timeout-input" class="w-full bg-gray-700 text-white rounded-md p-2 border border-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500" value="10" min="1" max="60">
                     </div>
 
                     <!-- Read Timeout -->
                     <div>
-                        <h3 class="text-white font-medium mb-2">Read Timeout (seconds)</h3>
+                        <div class="field-header">
+                            <h3 class="text-white font-medium">Read Timeout (seconds)</h3>
+                            <div class="tooltip">
+                                <div class="info-icon">i</div>
+                                <span class="tooltiptext">Maximum time to wait for data from the upstream API after connection is established. Used for both streaming and non-streaming responses.</span>
+                            </div>
+                        </div>
                         <p class="text-gray-400 text-sm mb-3">Maximum time to wait for data from upstream API</p>
                         <input type="number" id="read-timeout-input" class="w-full bg-gray-700 text-white rounded-md p-2 border border-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500" value="60" min="5" max="300">
                     </div>
 
                     <!-- Streaming Timeout -->
                     <div>
-                        <h3 class="text-white font-medium mb-2">Streaming Timeout (seconds)</h3>
+                        <div class="field-header">
+                            <h3 class="text-white font-medium">Streaming Timeout (seconds)</h3>
+                            <div class="tooltip">
+                                <div class="info-icon">i</div>
+                                <span class="tooltiptext">Maximum time to wait for streaming data chunks. Applied per chunk and used in conjunction with read timeout for streaming responses.</span>
+                            </div>
+                        </div>
                         <p class="text-gray-400 text-sm mb-3">Maximum time to wait for streaming data chunks</p>
                         <input type="number" id="streaming-timeout-input" class="w-full bg-gray-700 text-white rounded-md p-2 border border-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500" value="120" min="10" max="600">
                     </div>
@@ -172,42 +295,78 @@
                 <div class="space-y-4">
                     <!-- Retry Total -->
                     <div>
-                        <h3 class="text-white font-medium mb-2">Total Retry Attempts</h3>
+                        <div class="field-header">
+                            <h3 class="text-white font-medium">Total Retry Attempts</h3>
+                            <div class="tooltip">
+                                <div class="info-icon">i</div>
+                                <span class="tooltiptext">Maximum number of retry attempts for failed requests. This includes the initial attempt plus all retries. Used in the retry configuration for the requests library.</span>
+                            </div>
+                        </div>
                         <p class="text-gray-400 text-sm mb-3">Maximum number of retry attempts for failed requests</p>
                         <input type="number" id="retry-total-input" class="w-full bg-gray-700 text-white rounded-md p-2 border border-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500" value="7" min="0" max="20">
                     </div>
 
                     <!-- Retry Backoff Factor -->
                     <div>
-                        <h3 class="text-white font-medium mb-2">Retry Backoff Factor</h3>
+                        <div class="field-header">
+                            <h3 class="text-white font-medium">Retry Backoff Factor</h3>
+                            <div class="tooltip">
+                                <div class="info-icon">i</div>
+                                <span class="tooltiptext">Multiplier for exponential backoff between retries. Higher values create longer delays between retry attempts, helping to avoid overwhelming the upstream API.</span>
+                            </div>
+                        </div>
                         <p class="text-gray-400 text-sm mb-3">Multiplier for exponential backoff between retries</p>
                         <input type="number" id="retry-backoff-factor-input" class="w-full bg-gray-700 text-white rounded-md p-2 border border-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500" value="0.1" min="0.1" max="5" step="0.1">
                     </div>
 
                     <!-- Pool Connections -->
                     <div>
-                        <h3 class="text-white font-medium mb-2">Connection Pool Size</h3>
+                        <div class="field-header">
+                            <h3 class="text-white font-medium">Connection Pool Size</h3>
+                            <div class="tooltip">
+                                <div class="info-icon">i</div>
+                                <span class="tooltiptext">Number of connection pools to cache when using connection pooling. Each pool can maintain multiple connections to the same host.</span>
+                            </div>
+                        </div>
                         <p class="text-gray-400 text-sm mb-3">Number of connection pools to cache</p>
                         <input type="number" id="pool-connections-input" class="w-full bg-gray-700 text-white rounded-md p-2 border border-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500" value="20" min="1" max="100">
                     </div>
 
                     <!-- Pool Max Size -->
                     <div>
-                        <h3 class="text-white font-medium mb-2">Max Pool Connections</h3>
+                        <div class="field-header">
+                            <h3 class="text-white font-medium">Max Pool Connections</h3>
+                            <div class="tooltip">
+                                <div class="info-icon">i</div>
+                                <span class="tooltiptext">Maximum number of connections to save in the connection pool. Controls how many simultaneous connections can be maintained to the upstream API.</span>
+                            </div>
+                        </div>
                         <p class="text-gray-400 text-sm mb-3">Maximum number of connections to save in the pool</p>
                         <input type="number" id="pool-maxsize-input" class="w-full bg-gray-700 text-white rounded-md p-2 border border-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500" value="100" min="1" max="1000">
                     </div>
 
                     <!-- Max Stream Retries -->
                     <div>
-                        <h3 class="text-white font-medium mb-2">Max Stream Retries</h3>
+                        <div class="field-header">
+                            <h3 class="text-white font-medium">Max Stream Retries</h3>
+                            <div class="tooltip">
+                                <div class="info-icon">i</div>
+                                <span class="tooltiptext">Maximum retry attempts for individual streaming chunks that fail. Used by the stream_with_retry function to handle network interruptions during streaming.</span>
+                            </div>
+                        </div>
                         <p class="text-gray-400 text-sm mb-3">Maximum retry attempts for streaming chunks</p>
                         <input type="number" id="max-stream-retries-input" class="w-full bg-gray-700 text-white rounded-md p-2 border border-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500" value="2" min="0" max="10">
                     </div>
 
                     <!-- Chunk Retry Delay -->
                     <div>
-                        <h3 class="text-white font-medium mb-2">Chunk Retry Delay (seconds)</h3>
+                        <div class="field-header">
+                            <h3 class="text-white font-medium">Chunk Retry Delay (seconds)</h3>
+                            <div class="tooltip">
+                                <div class="info-icon">i</div>
+                                <span class="tooltiptext">Initial delay before retrying failed streaming chunks. This delay increases exponentially with each retry attempt.</span>
+                            </div>
+                        </div>
                         <p class="text-gray-400 text-sm mb-3">Initial delay before retrying failed streaming chunks</p>
                         <input type="number" id="chunk-retry-delay-input" class="w-full bg-gray-700 text-white rounded-md p-2 border border-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500" value="1.0" min="0.1" max="10" step="0.1">
                     </div>
@@ -226,11 +385,17 @@
                 <div class="space-y-4">
                     <!-- Enable Request Logging -->
                     <div class="flex items-center justify-between">
-                        <div>
-                            <h3 class="text-white font-medium">Enable Request Logging</h3>
+                        <div class="flex-1">
+                            <div class="field-header">
+                                <h3 class="text-white font-medium">Enable Request Logging</h3>
+                                <div class="tooltip">
+                                    <div class="info-icon">i</div>
+                                    <span class="tooltiptext">Log all incoming requests for debugging purposes. Includes request method, path, headers, and timing information. Useful for troubleshooting but may impact performance.</span>
+                                </div>
+                            </div>
                             <p class="text-gray-400 text-sm">Log all incoming requests for debugging</p>
                         </div>
-                        <label class="relative inline-flex items-center cursor-pointer">
+                        <label class="relative inline-flex items-center cursor-pointer ml-4">
                             <input type="checkbox" id="enable-request-logging-toggle" class="sr-only peer" checked>
                             <div class="w-11 h-6 bg-gray-600 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
                         </label>
@@ -238,7 +403,13 @@
 
                     <!-- Log Level -->
                     <div>
-                        <h3 class="text-white font-medium mb-2">Log Level</h3>
+                        <div class="field-header">
+                            <h3 class="text-white font-medium">Log Level</h3>
+                            <div class="tooltip">
+                                <div class="info-icon">i</div>
+                                <span class="tooltiptext">Minimum level of logs to capture. DEBUG shows all messages, INFO shows informational and above, WARNING shows warnings and errors, ERROR shows only errors.</span>
+                            </div>
+                        </div>
                         <p class="text-gray-400 text-sm mb-3">Minimum level of logs to capture</p>
                         <select id="log-level-select" class="w-full bg-gray-700 text-white rounded-md p-2 border border-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500">
                             <option value="DEBUG">DEBUG</option>
@@ -250,11 +421,17 @@
 
                     <!-- Enable Metrics Collection -->
                     <div class="flex items-center justify-between">
-                        <div>
-                            <h3 class="text-white font-medium">Enable Metrics Collection</h3>
+                        <div class="flex-1">
+                            <div class="field-header">
+                                <h3 class="text-white font-medium">Enable Metrics Collection</h3>
+                                <div class="tooltip">
+                                    <div class="info-icon">i</div>
+                                    <span class="tooltiptext">Collect performance metrics and statistics about API usage, latency, token counts, and error rates. Metrics are used for monitoring and optimization.</span>
+                                </div>
+                            </div>
                             <p class="text-gray-400 text-sm">Collect performance metrics and statistics</p>
                         </div>
-                        <label class="relative inline-flex items-center cursor-pointer">
+                        <label class="relative inline-flex items-center cursor-pointer ml-4">
                             <input type="checkbox" id="enable-metrics-collection-toggle" class="sr-only peer" checked>
                             <div class="w-11 h-6 bg-gray-600 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
                         </label>
@@ -262,11 +439,17 @@
 
                     <!-- Enable Performance Logging -->
                     <div class="flex items-center justify-between">
-                        <div>
-                            <h3 class="text-white font-medium">Enable Performance Logging</h3>
+                        <div class="flex-1">
+                            <div class="field-header">
+                                <h3 class="text-white font-medium">Enable Performance Logging</h3>
+                                <div class="tooltip">
+                                    <div class="info-icon">i</div>
+                                    <span class="tooltiptext">Log detailed performance metrics including request latency, token usage, and throughput statistics. Helps identify performance bottlenecks.</span>
+                                </div>
+                            </div>
                             <p class="text-gray-400 text-sm">Log detailed performance metrics</p>
                         </div>
-                        <label class="relative inline-flex items-center cursor-pointer">
+                        <label class="relative inline-flex items-center cursor-pointer ml-4">
                             <input type="checkbox" id="enable-performance-logging-toggle" class="sr-only peer" checked>
                             <div class="w-11 h-6 bg-gray-600 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
                         </label>
@@ -275,21 +458,33 @@
                     <!-- Log Request/Response Bodies -->
                     <div class="grid grid-cols-2 gap-4">
                         <div class="flex items-center justify-between">
-                            <div>
-                                <h3 class="text-white font-medium text-sm">Log Request Body</h3>
+                            <div class="flex-1">
+                                <div class="field-header">
+                                    <h3 class="text-white font-medium text-sm">Log Request Body</h3>
+                                    <div class="tooltip">
+                                        <div class="info-icon">i</div>
+                                        <span class="tooltiptext">Include request payloads in logs. Useful for debugging API calls but may log sensitive information. Only enable in development environments.</span>
+                                    </div>
+                                </div>
                                 <p class="text-gray-400 text-xs">Include request payloads in logs</p>
                             </div>
-                            <label class="relative inline-flex items-center cursor-pointer">
+                            <label class="relative inline-flex items-center cursor-pointer ml-2">
                                 <input type="checkbox" id="log-request-body-toggle" class="sr-only peer">
                                 <div class="w-9 h-5 bg-gray-600 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-blue-600"></div>
                             </label>
                         </div>
                         <div class="flex items-center justify-between">
-                            <div>
-                                <h3 class="text-white font-medium text-sm">Log Response Body</h3>
+                            <div class="flex-1">
+                                <div class="field-header">
+                                    <h3 class="text-white font-medium text-sm">Log Response Body</h3>
+                                    <div class="tooltip">
+                                        <div class="info-icon">i</div>
+                                        <span class="tooltiptext">Include response payloads in logs. Useful for debugging API responses but may log sensitive information. Only enable in development environments.</span>
+                                    </div>
+                                </div>
                                 <p class="text-gray-400 text-xs">Include response payloads in logs</p>
                             </div>
-                            <label class="relative inline-flex items-center cursor-pointer">
+                            <label class="relative inline-flex items-center cursor-pointer ml-2">
                                 <input type="checkbox" id="log-response-body-toggle" class="sr-only peer">
                                 <div class="w-9 h-5 bg-gray-600 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-blue-600"></div>
                             </label>
@@ -310,11 +505,17 @@
                 <div class="space-y-4">
                     <!-- Enable Rate Limiting -->
                     <div class="flex items-center justify-between">
-                        <div>
-                            <h3 class="text-white font-medium">Enable Rate Limiting</h3>
+                        <div class="flex-1">
+                            <div class="field-header">
+                                <h3 class="text-white font-medium">Enable Rate Limiting</h3>
+                                <div class="tooltip">
+                                    <div class="info-icon">i</div>
+                                    <span class="tooltiptext">Limit request rate per client to prevent abuse and ensure fair usage. When enabled, clients exceeding the rate limit will receive 429 responses.</span>
+                                </div>
+                            </div>
                             <p class="text-gray-400 text-sm">Limit request rate per client</p>
                         </div>
-                        <label class="relative inline-flex items-center cursor-pointer">
+                        <label class="relative inline-flex items-center cursor-pointer ml-4">
                             <input type="checkbox" id="enable-rate-limiting-toggle" class="sr-only peer">
                             <div class="w-11 h-6 bg-gray-600 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
                         </label>
@@ -322,14 +523,26 @@
 
                     <!-- Requests Per Minute -->
                     <div>
-                        <h3 class="text-white font-medium mb-2">Requests Per Minute</h3>
+                        <div class="field-header">
+                            <h3 class="text-white font-medium">Requests Per Minute</h3>
+                            <div class="tooltip">
+                                <div class="info-icon">i</div>
+                                <span class="tooltiptext">Maximum requests allowed per minute per client IP address. This limit helps prevent abuse while allowing reasonable usage patterns.</span>
+                            </div>
+                        </div>
                         <p class="text-gray-400 text-sm mb-3">Maximum requests allowed per minute per client</p>
                         <input type="number" id="requests-per-minute-input" class="w-full bg-gray-700 text-white rounded-md p-2 border border-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500" value="60" min="1" max="1000">
                     </div>
 
                     <!-- Rate Limiting Strategy -->
                     <div>
-                        <h3 class="text-white font-medium mb-2">Rate Limiting Strategy</h3>
+                        <div class="field-header">
+                            <h3 class="text-white font-medium">Rate Limiting Strategy</h3>
+                            <div class="tooltip">
+                                <div class="info-icon">i</div>
+                                <span class="tooltiptext">Algorithm for rate limiting: Fixed Window (resets at fixed intervals), Sliding Window (smooth rate limiting), Token Bucket (allows bursts).</span>
+                            </div>
+                        </div>
                         <p class="text-gray-400 text-sm mb-3">Algorithm for rate limiting</p>
                         <select id="rate-limiting-strategy-select" class="w-full bg-gray-700 text-white rounded-md p-2 border border-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500">
                             <option value="fixed_window" selected>Fixed Window</option>
@@ -340,7 +553,13 @@
 
                     <!-- Burst Allowance -->
                     <div>
-                        <h3 class="text-white font-medium mb-2">Burst Allowance</h3>
+                        <div class="field-header">
+                            <h3 class="text-white font-medium">Burst Allowance</h3>
+                            <div class="tooltip">
+                                <div class="info-icon">i</div>
+                                <span class="tooltiptext">Extra requests allowed in short bursts above the normal rate limit. Useful for handling legitimate burst traffic patterns.</span>
+                            </div>
+                        </div>
                         <p class="text-gray-400 text-sm mb-3">Extra requests allowed in short bursts</p>
                         <input type="number" id="burst-allowance-input" class="w-full bg-gray-700 text-white rounded-md p-2 border border-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500" value="10" min="0" max="100">
                     </div>
@@ -359,11 +578,17 @@
                 <div class="space-y-4">
                     <!-- Enable CORS -->
                     <div class="flex items-center justify-between">
-                        <div>
-                            <h3 class="text-white font-medium">Enable CORS</h3>
+                        <div class="flex-1">
+                            <div class="field-header">
+                                <h3 class="text-white font-medium">Enable CORS</h3>
+                                <div class="tooltip">
+                                    <div class="info-icon">i</div>
+                                    <span class="tooltiptext">Cross-Origin Resource Sharing support. Allows web applications from different domains to make requests to this API. Required for web-based clients.</span>
+                                </div>
+                            </div>
                             <p class="text-gray-400 text-sm">Cross-Origin Resource Sharing support</p>
                         </div>
-                        <label class="relative inline-flex items-center cursor-pointer">
+                        <label class="relative inline-flex items-center cursor-pointer ml-4">
                             <input type="checkbox" id="enable-cors-toggle" class="sr-only peer" checked>
                             <div class="w-11 h-6 bg-gray-600 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
                         </label>
@@ -371,21 +596,39 @@
 
                     <!-- CORS Origins -->
                     <div>
-                        <h3 class="text-white font-medium mb-2">CORS Origins</h3>
+                        <div class="field-header">
+                            <h3 class="text-white font-medium">CORS Origins</h3>
+                            <div class="tooltip">
+                                <div class="info-icon">i</div>
+                                <span class="tooltiptext">Allowed origins for CORS requests. Use '*' for all origins (less secure) or specify comma-separated domains like 'https://example.com,https://app.example.com'.</span>
+                            </div>
+                        </div>
                         <p class="text-gray-400 text-sm mb-3">Allowed origins (comma-separated, * for all)</p>
                         <input type="text" id="cors-origins-input" class="w-full bg-gray-700 text-white rounded-md p-2 border border-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500" value="*" placeholder="* or https://example.com,https://api.example.com">
                     </div>
 
                     <!-- Max Request Size -->
                     <div>
-                        <h3 class="text-white font-medium mb-2">Max Request Size (bytes)</h3>
+                        <div class="field-header">
+                            <h3 class="text-white font-medium">Max Request Size (bytes)</h3>
+                            <div class="tooltip">
+                                <div class="info-icon">i</div>
+                                <span class="tooltiptext">Maximum allowed request body size. Protects against oversized requests that could cause memory issues or be used for DoS attacks.</span>
+                            </div>
+                        </div>
                         <p class="text-gray-400 text-sm mb-3">Maximum allowed request body size</p>
                         <input type="number" id="max-request-size-input" class="w-full bg-gray-700 text-white rounded-md p-2 border border-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500" value="10485760" min="1024" max="104857600">
                     </div>
 
                     <!-- Blocked User Agents -->
                     <div>
-                        <h3 class="text-white font-medium mb-2">Blocked User Agents</h3>
+                        <div class="field-header">
+                            <h3 class="text-white font-medium">Blocked User Agents</h3>
+                            <div class="tooltip">
+                                <div class="info-icon">i</div>
+                                <span class="tooltiptext">User agent strings to block. Requests from these user agents will be rejected. Useful for blocking unwanted bots or crawlers.</span>
+                            </div>
+                        </div>
                         <p class="text-gray-400 text-sm mb-3">User agents to block (comma-separated)</p>
                         <input type="text" id="blocked-user-agents-input" class="w-full bg-gray-700 text-white rounded-md p-2 border border-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500" value="" placeholder="curl,wget,bot">
                     </div>
@@ -405,7 +648,13 @@
                 <div class="space-y-4">
                     <!-- Failover Strategy -->
                     <div>
-                        <h3 class="text-white font-medium mb-2">Failover Strategy</h3>
+                        <div class="field-header">
+                            <h3 class="text-white font-medium">Failover Strategy</h3>
+                            <div class="tooltip">
+                                <div class="info-icon">i</div>
+                                <span class="tooltiptext">Method for selecting backup API keys when the primary key fails. Round Robin cycles through keys sequentially, Random selects randomly, Least Used picks the least recently used key.</span>
+                            </div>
+                        </div>
                         <p class="text-gray-400 text-sm mb-3">Method for selecting backup API keys</p>
                         <select id="failover-strategy-select" class="w-full bg-gray-700 text-white rounded-md p-2 border border-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500">
                             <option value="round_robin" selected>Round Robin</option>
@@ -417,35 +666,65 @@
 
                     <!-- Buffer Size -->
                     <div>
-                        <h3 class="text-white font-medium mb-2">Default Buffer Size (bytes)</h3>
+                        <div class="field-header">
+                            <h3 class="text-white font-medium">Default Buffer Size (bytes)</h3>
+                            <div class="tooltip">
+                                <div class="info-icon">i</div>
+                                <span class="tooltiptext">Default size of streaming buffer chunks for reading response data. Optimized automatically based on request size and content type, but this sets the baseline.</span>
+                            </div>
+                        </div>
                         <p class="text-gray-400 text-sm mb-3">Default size of streaming buffer chunks</p>
                         <input type="number" id="buffer-size-input" class="w-full bg-gray-700 text-white rounded-md p-2 border border-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500" value="8192" min="1024" max="65536" step="1024">
                     </div>
 
                     <!-- Small Request Threshold -->
                     <div>
-                        <h3 class="text-white font-medium mb-2">Small Request Threshold (bytes)</h3>
+                        <div class="field-header">
+                            <h3 class="text-white font-medium">Small Request Threshold (bytes)</h3>
+                            <div class="tooltip">
+                                <div class="info-icon">i</div>
+                                <span class="tooltiptext">Request size below which smaller buffers are automatically used. Helps optimize memory usage for small requests like simple queries.</span>
+                            </div>
+                        </div>
                         <p class="text-gray-400 text-sm mb-3">Request size below which smaller buffers are used</p>
                         <input type="number" id="small-request-threshold-input" class="w-full bg-gray-700 text-white rounded-md p-2 border border-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500" value="1024" min="512" max="10240" step="512">
                     </div>
 
                     <!-- Large Request Threshold -->
                     <div>
-                        <h3 class="text-white font-medium mb-2">Large Request Threshold (bytes)</h3>
+                        <div class="field-header">
+                            <h3 class="text-white font-medium">Large Request Threshold (bytes)</h3>
+                            <div class="tooltip">
+                                <div class="info-icon">i</div>
+                                <span class="tooltiptext">Request size above which larger buffers are automatically used. Optimizes for large requests like complex prompts or file uploads.</span>
+                            </div>
+                        </div>
                         <p class="text-gray-400 text-sm mb-3">Request size above which larger buffers are used</p>
                         <input type="number" id="large-request-threshold-input" class="w-full bg-gray-700 text-white rounded-md p-2 border border-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500" value="100000" min="10000" max="1000000" step="10000">
                     </div>
 
                     <!-- Small Buffer Size -->
                     <div>
-                        <h3 class="text-white font-medium mb-2">Small Buffer Size (bytes)</h3>
+                        <div class="field-header">
+                            <h3 class="text-white font-medium">Small Buffer Size (bytes)</h3>
+                            <div class="tooltip">
+                                <div class="info-icon">i</div>
+                                <span class="tooltiptext">Buffer size used for small requests. Smaller buffers reduce memory overhead for simple, lightweight requests.</span>
+                            </div>
+                        </div>
                         <p class="text-gray-400 text-sm mb-3">Buffer size used for small requests</p>
                         <input type="number" id="small-buffer-size-input" class="w-full bg-gray-700 text-white rounded-md p-2 border border-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500" value="4096" min="1024" max="8192" step="512">
                     </div>
 
                     <!-- Large Buffer Size -->
                     <div>
-                        <h3 class="text-white font-medium mb-2">Large Buffer Size (bytes)</h3>
+                        <div class="field-header">
+                            <h3 class="text-white font-medium">Large Buffer Size (bytes)</h3>
+                            <div class="tooltip">
+                                <div class="info-icon">i</div>
+                                <span class="tooltiptext">Buffer size used for large requests. Larger buffers improve throughput for big data transfers and streaming responses.</span>
+                            </div>
+                        </div>
                         <p class="text-gray-400 text-sm mb-3">Buffer size used for large requests</p>
                         <input type="number" id="large-buffer-size-input" class="w-full bg-gray-700 text-white rounded-md p-2 border border-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500" value="16384" min="8192" max="131072" step="1024">
                     </div>
@@ -453,12 +732,24 @@
                     <!-- Min/Max Buffer Size -->
                     <div class="grid grid-cols-2 gap-4">
                         <div>
-                            <h3 class="text-white font-medium mb-2">Min Buffer Size (bytes)</h3>
+                            <div class="field-header">
+                                <h3 class="text-white font-medium">Min Buffer Size (bytes)</h3>
+                                <div class="tooltip">
+                                    <div class="info-icon">i</div>
+                                    <span class="tooltiptext">Minimum allowed buffer size. Ensures buffers don't become too small to be efficient, preventing excessive system calls.</span>
+                                </div>
+                            </div>
                             <p class="text-gray-400 text-sm mb-3">Minimum allowed buffer size</p>
                             <input type="number" id="min-buffer-size-input" class="w-full bg-gray-700 text-white rounded-md p-2 border border-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500" value="1024" min="512" max="4096" step="256">
                         </div>
                         <div>
-                            <h3 class="text-white font-medium mb-2">Max Buffer Size (bytes)</h3>
+                            <div class="field-header">
+                                <h3 class="text-white font-medium">Max Buffer Size (bytes)</h3>
+                                <div class="tooltip">
+                                    <div class="info-icon">i</div>
+                                    <span class="tooltiptext">Maximum allowed buffer size. Prevents excessive memory usage that could impact system performance or stability.</span>
+                                </div>
+                            </div>
                             <p class="text-gray-400 text-sm mb-3">Maximum allowed buffer size</p>
                             <input type="number" id="max-buffer-size-input" class="w-full bg-gray-700 text-white rounded-md p-2 border border-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500" value="65536" min="16384" max="1048576" step="1024">
                         </div>
@@ -466,25 +757,43 @@
 
                     <!-- JSON Buffer Limit -->
                     <div>
-                        <h3 class="text-white font-medium mb-2">JSON Buffer Limit (bytes)</h3>
+                        <div class="field-header">
+                            <h3 class="text-white font-medium">JSON Buffer Limit (bytes)</h3>
+                            <div class="tooltip">
+                                <div class="info-icon">i</div>
+                                <span class="tooltiptext">Amount of streaming response to buffer for token extraction and usage statistics. Must be large enough to capture the JSON metadata.</span>
+                            </div>
+                        </div>
                         <p class="text-gray-400 text-sm mb-3">Amount of streaming response to buffer for token extraction</p>
                         <input type="number" id="json-buffer-limit-input" class="w-full bg-gray-700 text-white rounded-md p-2 border border-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500" value="2048" min="1024" max="16384" step="256">
                     </div>
 
                     <!-- Max Concurrent Requests -->
                     <div>
-                        <h3 class="text-white font-medium mb-2">Max Concurrent Requests</h3>
+                        <div class="field-header">
+                            <h3 class="text-white font-medium">Max Concurrent Requests</h3>
+                            <div class="tooltip">
+                                <div class="info-icon">i</div>
+                                <span class="tooltiptext">Maximum simultaneous requests allowed. Helps prevent resource exhaustion and ensures fair resource allocation across clients.</span>
+                            </div>
+                        </div>
                         <p class="text-gray-400 text-sm mb-3">Maximum simultaneous requests allowed</p>
                         <input type="number" id="max-concurrent-requests-input" class="w-full bg-gray-700 text-white rounded-md p-2 border border-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500" value="100" min="1" max="1000">
                     </div>
 
                     <!-- Request ID Injection -->
                     <div class="flex items-center justify-between">
-                        <div>
-                            <h3 class="text-white font-medium">Enable Request ID Injection</h3>
+                        <div class="flex-1">
+                            <div class="field-header">
+                                <h3 class="text-white font-medium">Enable Request ID Injection</h3>
+                                <div class="tooltip">
+                                    <div class="info-icon">i</div>
+                                    <span class="tooltiptext">Add unique request IDs to all outgoing requests for tracing and debugging. Helps correlate requests across logs and monitoring systems.</span>
+                                </div>
+                            </div>
                             <p class="text-gray-400 text-sm">Add unique request IDs for tracing</p>
                         </div>
-                        <label class="relative inline-flex items-center cursor-pointer">
+                        <label class="relative inline-flex items-center cursor-pointer ml-4">
                             <input type="checkbox" id="enable-request-id-injection-toggle" class="sr-only peer" checked>
                             <div class="w-11 h-6 bg-gray-600 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
                         </label>
