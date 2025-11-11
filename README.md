@@ -26,7 +26,10 @@ A powerful middleware solution for managing and proxying AI API requests with bu
 - **📊 Real-time Monitoring**: Track API usage with live logs and detailed KPI metrics (requests, success/failure rates)
 - **🔄 Smart Proxy**: Seamlessly proxy requests to various AI services (Gemini, OpenAI, and more)
 - **📈 Analytics Dashboard**: Beautiful web interface to visualize API usage and performance metrics
+- **⚙️ Performance Settings**: Real-time performance tuning without application restart
 - **📝 Comprehensive Logging**: Track all API requests with timestamps, status codes, and response times
+- **🚀 High Performance**: Connection pooling, response caching, and streaming support for optimal speed
+- **🔄 Retry Logic**: Configurable retry attempts (up to 7) for better reliability under load
 - **🐳 Docker Support**: Easy deployment with Docker and Docker Compose
 - **📚 Auto-generated API Docs**: Interactive Swagger/OpenAPI documentation for all endpoints
 - **⚡ Lightweight**: Built with Flask for fast performance and minimal resource usage
@@ -120,6 +123,17 @@ From the dashboard, you can:
 - **Delete keys**: Remove keys that are no longer needed
 - **View live logs**: See real-time API request logs with detailed information
 
+### Performance Settings
+
+Navigate to `http://localhost:5000/middleware/settings` to configure:
+- **Connection Pool Size**: Adjust base and maximum connections (default: 20 base, 100 max)
+- **Retry Attempts**: Configure retry logic for failed requests (default: 7 attempts)
+- **Cache Timeout**: Set response caching duration for model discovery (default: 5 minutes)
+- **Request Timeout**: Adjust timeout values for API requests
+- **Streaming**: Enable/disable response streaming for real-time generation
+
+All settings are applied in real-time without requiring application restart.
+
 ### Using the Proxy
 
 #### Example 1: Proxying Gemini API Requests
@@ -137,7 +151,29 @@ curl -X POST http://localhost:5000/v1/models/gemini-pro:generateContent \
   }'
 ```
 
-#### Example 2: Using with Your Application
+#### Example 2: Streaming Responses
+
+```python
+import requests
+
+# Enable streaming for real-time responses
+response = requests.post(
+    "http://localhost:5000/v1/models/gemini-pro:generateContent",
+    json={
+        "contents": [{
+            "parts": [{"text": "Write a story about AI"}]
+        }]
+    },
+    stream=True
+)
+
+# Process the response as it streams in
+for line in response.iter_lines():
+    if line:
+        print(line.decode('utf-8'))
+```
+
+#### Example 3: Using with Your Application
 
 ```python
 import requests
@@ -155,7 +191,7 @@ response = requests.post(
 print(response.json())
 ```
 
-> **Note**: The middleware automatically selects and rotates available API keys, handles errors, and logs all requests for monitoring.
+> **Note**: The middleware automatically selects and rotates available API keys, handles errors with intelligent retry logic, and logs all requests for monitoring. Connection pooling ensures optimal performance under load.
 
 ### Viewing API Documentation
 
@@ -188,6 +224,18 @@ MIDDLEWARE_PASSWORD=your_very_secure_password_123
 
 The middleware uses SQLite for data persistence. The database file is automatically created at `data/keys.db` on first run. This directory is mounted as a volume in Docker to ensure data persistence across container restarts.
 
+### Performance Configuration
+
+The middleware includes intelligent performance optimizations:
+
+- **Connection Pooling**: 20 base connections, 100 max connections with HTTP keep-alive
+- **Retry Logic**: Up to 7 retry attempts with exponential backoff for failed requests
+- **Response Caching**: 5-minute cache for model discovery endpoints
+- **Streaming Support**: Real-time response streaming for generative AI
+- **Thread Safety**: All database operations use thread-safe locks
+
+These settings can be configured in real-time via the settings page without application restart.
+
 ## 📚 API Documentation
 
 ### Authentication Endpoints
@@ -207,12 +255,21 @@ The middleware uses SQLite for data persistence. The database file is automatica
 
 - `GET /middleware/api/logs` - Get live request logs
 - `GET /middleware/dashboard` - Access the web dashboard
+- `GET /middleware/settings` - Access performance settings page
 
 ### Proxy Endpoints
 
 - `POST /v1/models/<model>:generateContent` - Gemini API proxy
 - `POST /v1beta/models/<model>:generateContent` - Gemini Beta API proxy
+- `GET /v1/models` - Model discovery (with 5-minute caching)
+- `POST /v1/chat/completions` - OpenAI-style API proxy
 - Additional proxy endpoints available - see Swagger docs
+
+### Settings Endpoints
+
+- `GET /middleware/api/settings` - Get current performance settings
+- `POST /middleware/api/settings` - Update performance settings
+- `POST /middleware/api/settings/reset` - Reset settings to defaults
 
 For detailed API documentation with request/response schemas, visit `/middleware/swagger/` when the application is running.
 

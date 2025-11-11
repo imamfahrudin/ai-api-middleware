@@ -50,10 +50,14 @@ pip install -r requirements.txt
 **app/**: Main application package containing:
 - **config.py**: Configuration management (SECRET_KEY, MIDDLEWARE_PASSWORD, DB_PATH)
 - **database.py**: KeyManager class handles API key rotation, statistics tracking, and SQLite database operations
-- **proxy.py**: Central proxy logic with request transformation, provider detection, and failover handling
+- **proxy.py**: Central proxy logic with request transformation, provider detection, failover handling, connection pooling, and streaming support
 - **api_routes.py**: Admin API endpoints for key management and monitoring
 - **auth.py**: Session-based authentication using MIDDLEWARE_PASSWORD
 - **logging_utils.py**: In-memory live logging for dashboard
+- **templates/**: Jinja2 templates for the web interface
+  - **dashboard.html**: Main API key management dashboard
+  - **login.html**: Authentication interface
+  - **settings.html**: Performance and application settings management
 
 ### Key Architecture Patterns
 
@@ -67,6 +71,12 @@ pip install -r requirements.txt
 **Smart Key Rotation**: Keys are rotated based on `last_rotated_at` timestamp to ensure even usage distribution. Failed keys are automatically marked as `Resting` (rate limits) or `Disabled` (auth errors).
 
 **Provider Format Detection**: The proxy inspects request paths and bodies to determine the target API format (Gemini vs OpenAI-style) and transforms headers accordingly.
+
+**Connection Pooling & Performance**: HTTP requests use connection pooling with configurable retry strategies (total=3, backoff_factor=0.1) for better reliability and performance under load.
+
+**Streaming Support**: The proxy supports streaming responses for real-time AI generation with proper backpressure handling and response caching.
+
+**Response Caching**: Model discovery responses are cached for 5 minutes (configurable) to reduce API calls and improve response times.
 
 ### Database Schema
 
@@ -100,6 +110,7 @@ Database migrations are handled manually in `KeyManager._initialize_db()` using 
 
 ### Access Points
 - **Dashboard**: `http://localhost:5000/middleware/` (requires login)
+- **Settings**: `http://localhost:5000/middleware/settings` (performance configuration)
 - **API Docs**: `http://localhost:5000/middleware/swagger/` (interactive Swagger UI)
 - **Login**: `http://localhost:5000/middleware/login`
 
@@ -148,3 +159,12 @@ FLASK_ENV=production
 - Proxy endpoints can be tested directly with curl/requests
 - Database is automatically created on first run at `data/keys.db`
 - Live logs are available via `GET /middleware/api/logs` endpoint
+- Settings page allows real-time performance tuning without restart
+- Connection pool supports up to 100 concurrent connections with 20 base connections
+
+### Performance Features
+- **Retry Logic**: Configurable retry attempts (increased from 3 to 7 for better reliability)
+- **Connection Pooling**: 20 base connections, 100 max connections with HTTP keep-alive
+- **Response Caching**: 5-minute cache for model discovery endpoints
+- **Streaming**: Real-time response streaming for generative AI endpoints
+- **Backpressure Handling**: Proper flow control for streaming responses
