@@ -222,10 +222,13 @@
                         </div>
                         <p class="text-gray-400 text-sm mb-3">Number of times to retry failed requests with different API keys</p>
                         <select id="max-retries-select" class="w-full bg-gray-700 text-white rounded-md p-2 border border-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                            <option value="1">1 retry</option>
                             <option value="3">3 retries</option>
                             <option value="5">5 retries</option>
                             <option value="7" selected>7 retries</option>
                             <option value="10">10 retries</option>
+                            <option value="15">15 retries</option>
+                            <option value="20">20 retries</option>
                         </select>
                     </div>
 
@@ -303,7 +306,7 @@
                             </div>
                         </div>
                         <p class="text-gray-400 text-sm mb-3">Maximum number of retry attempts for failed requests</p>
-                        <input type="number" id="retry-total-input" class="w-full bg-gray-700 text-white rounded-md p-2 border border-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500" value="50" min="0" max="20">
+                        <input type="number" id="retry-total-input" class="w-full bg-gray-700 text-white rounded-md p-2 border border-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500" value="50" min="0" max="100">
                     </div>
 
                     <!-- Retry Backoff Factor -->

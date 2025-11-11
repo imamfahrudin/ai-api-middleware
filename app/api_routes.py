@@ -573,8 +573,30 @@ def update_settings():
                 # Additional validation for numeric values
                 if key == 'max_retries' and not (1 <= value <= 20):
                     return jsonify({"success": False, "message": "max_retries must be between 1 and 20"}), 400
+                elif key == 'retry_total' and not (0 <= value <= 100):
+                    return jsonify({"success": False, "message": "retry_total must be between 0 and 100"}), 400
                 elif key == 'request_timeout' and not (5 <= value <= 300):
                     return jsonify({"success": False, "message": "request_timeout must be between 5 and 300 seconds"}), 400
+                elif key == 'connect_timeout' and not (1 <= value <= 60):
+                    return jsonify({"success": False, "message": "connect_timeout must be between 1 and 60 seconds"}), 400
+                elif key == 'read_timeout' and not (5 <= value <= 300):
+                    return jsonify({"success": False, "message": "read_timeout must be between 5 and 300 seconds"}), 400
+                elif key == 'streaming_timeout' and not (10 <= value <= 600):
+                    return jsonify({"success": False, "message": "streaming_timeout must be between 10 and 600 seconds"}), 400
+                elif key == 'cache_timeout' and not (60 <= value <= 3600):
+                    return jsonify({"success": False, "message": "cache_timeout must be between 60 and 3600 seconds"}), 400
+                elif key == 'model_cache_timeout' and not (5 <= value <= 60):
+                    return jsonify({"success": False, "message": "model_cache_timeout must be between 5 and 60 seconds"}), 400
+                elif key == 'retry_backoff_factor' and not (0.1 <= value <= 5.0):
+                    return jsonify({"success": False, "message": "retry_backoff_factor must be between 0.1 and 5.0"}), 400
+                elif key == 'pool_connections' and not (1 <= value <= 100):
+                    return jsonify({"success": False, "message": "pool_connections must be between 1 and 100"}), 400
+                elif key == 'pool_maxsize' and not (1 <= value <= 1000):
+                    return jsonify({"success": False, "message": "pool_maxsize must be between 1 and 1000"}), 400
+                elif key == 'max_stream_retries' and not (0 <= value <= 10):
+                    return jsonify({"success": False, "message": "max_stream_retries must be between 0 and 10"}), 400
+                elif key == 'chunk_retry_delay' and not (0.1 <= value <= 10.0):
+                    return jsonify({"success": False, "message": "chunk_retry_delay must be between 0.1 and 10.0 seconds"}), 400
                 elif key == 'requests_per_minute' and not (1 <= value <= 1000):
                     return jsonify({"success": False, "message": "requests_per_minute must be between 1 and 1000"}), 400
                 elif key == 'burst_allowance' and not (0 <= value <= 100):
