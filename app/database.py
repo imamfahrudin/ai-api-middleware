@@ -268,6 +268,64 @@ class KeyManager:
             cursor.execute("SELECT * FROM daily_stats WHERE key_id = ? AND date >= ? ORDER BY date ASC", (key_id, date_limit))
             return [dict(row) for row in cursor.fetchall()]
 
+    def get_key_aggregated_stats(self, key_id, days=30):
+        """Get aggregated statistics for a specific key with daily breakdown."""
+        with self.lock:
+            cursor = self.conn.cursor()
+            date_limit = (datetime.date.today() - datetime.timedelta(days=days)).isoformat()
+            
+            # Get daily stats
+            cursor.execute("SELECT * FROM daily_stats WHERE key_id = ? AND date >= ? ORDER BY date ASC", (key_id, date_limit))
+            daily_stats = [dict(row) for row in cursor.fetchall()]
+            
+            # Calculate aggregated totals
+            total_requests = sum(row['requests'] for row in daily_stats)
+            successful_requests = sum(row['successes'] for row in daily_stats)
+            failed_requests = sum(row['errors'] for row in daily_stats)
+            total_tokens_in = sum(row['tokens_in'] for row in daily_stats)
+            total_tokens_out = sum(row['tokens_out'] for row in daily_stats)
+            total_latency_ms = sum(row['total_latency_ms'] for row in daily_stats)
+            avg_latency = total_latency_ms / total_requests if total_requests > 0 else 0
+            
+            # Aggregate model usage
+            model_usage = {}
+            for row in daily_stats:
+                usage = json.loads(row['model_usage'])
+                for model, count in usage.items():
+                    model_usage[model] = model_usage.get(model, 0) + count
+            
+            # Aggregate error types
+            error_types = {}
+            for row in daily_stats:
+                errors = json.loads(row['error_codes'])
+                for code, count in errors.items():
+                    error_types[code] = error_types.get(code, 0) + count
+            
+            # Transform daily stats for chart consumption
+            daily_chart_data = []
+            for row in daily_stats:
+                daily_chart_data.append({
+                    'date': row['date'],
+                    'total_requests': row['requests'],
+                    'successes': row['successes'],
+                    'errors': row['errors'],
+                    'tokens_in': row['tokens_in'],
+                    'tokens_out': row['tokens_out'],
+                    'avg_latency': row['total_latency_ms'] / row['requests'] if row['requests'] > 0 else 0
+                })
+            
+            return {
+                'total_requests': total_requests,
+                'successful_requests': successful_requests,
+                'failed_requests': failed_requests,
+                'total_tokens_in': total_tokens_in,
+                'total_tokens_out': total_tokens_out,
+                'avg_latency': avg_latency,
+                'model_usage': model_usage,
+                'error_types': error_types,
+                'daily_stats': daily_chart_data
+            }
+
     def get_global_stats(self, days=7):
         return self._get_cached('global_stats', self._compute_global_stats, days)
 

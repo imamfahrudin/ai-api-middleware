@@ -116,7 +116,7 @@ def get_key_details_route(key_id):
 @login_required
 def get_stats_route(key_id):
     """
-    Get daily statistics for a specific API key
+    Get aggregated statistics for a specific API key
     ---
     tags:
       - Statistics
@@ -130,24 +130,34 @@ def get_stats_route(key_id):
         description: ID of the key
     responses:
       200:
-        description: Daily statistics retrieved successfully
+        description: Aggregated statistics retrieved successfully
         schema:
-          type: array
-          items:
-            type: object
-            properties:
-              date:
-                type: string
-              requests:
-                type: integer
-              tokens_in:
-                type: integer
-              tokens_out:
-                type: integer
+          type: object
+          properties:
+            total_requests:
+              type: integer
+            successful_requests:
+              type: integer
+            failed_requests:
+              type: integer
+            total_tokens_in:
+              type: integer
+            total_tokens_out:
+              type: integer
+            avg_latency:
+              type: number
+            model_usage:
+              type: object
+            error_types:
+              type: object
+            daily_stats:
+              type: array
+              items:
+                type: object
       302:
         description: Redirect to login if not authenticated
     """
-    return jsonify(key_manager.get_daily_stats(key_id))
+    return jsonify(key_manager.get_key_aggregated_stats(key_id))
 
 @api_bp.route('/middleware/api/global-stats', methods=['GET'])
 @login_required
