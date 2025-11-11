@@ -14,15 +14,6 @@
         <div class="flex justify-between items-center mb-4">
             <h1 class="text-2xl font-bold">AI API Middleware</h1>
         </div>
-        <div class="mb-4 space-y-2">
-            <input type="search" id="key-search" placeholder="Search keys..." class="w-full bg-gray-800 text-white rounded-md p-2 border border-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500">
-            <select id="status-filter" class="w-full bg-gray-800 text-white rounded-md p-2 border border-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500">
-                <option value="all">All Statuses</option>
-                <option value="Healthy">Healthy</option>
-                <option value="Resting">Resting</option>
-                <option value="Disabled">Disabled</option>
-            </select>
-        </div>
         <nav class="flex-grow overflow-y-auto">
             <h2 class="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">Views</h2>
             <ul class="space-y-1">
@@ -32,6 +23,14 @@
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2h8a2 2 0 002-2v-1a2 2 0 012-2h1.945M7.707 4.293l.707-.707a2 2 0 012.828 0l2.122 2.121a2 2 0 002.828 0l.707-.707M12 21a9 9 0 110-18 9 9 0 010 18z" />
                         </svg>
                         Global Overview
+                    </a>
+                </li>
+                <li id="keys-btn-li" class="sidebar-item">
+                    <a href="/middleware/keys" class="p-2 rounded-md flex items-center gap-2 hover:bg-gray-700">
+                        <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" />
+                        </svg>
+                        Key Management
                     </a>
                 </li>
                 <li id="settings-btn-li" class="sidebar-item">
@@ -44,61 +43,15 @@
                     </a>
                 </li>
             </ul>
-            <h2 class="text-xs font-semibold text-gray-400 uppercase tracking-wider mt-4 mb-2">Managed Keys</h2>
-            <ul id="keys-sidebar-list" class="space-y-1"></ul>
         </nav>
-        <div id="bulk-actions-menu" class="hidden mt-4 space-y-2">
-            <select id="bulk-action-select" class="w-full bg-gray-800 rounded p-2 border border-gray-600">
-                <option value="">Bulk Actions...</option>
-                <option value="Healthy">Set Healthy</option>
-                <option value="Disabled">Set Disabled</option>
-            </select>
-            <button id="apply-bulk-action" class="w-full bg-yellow-600 hover:bg-yellow-700 text-white font-bold py-2 px-4 rounded">Apply to Selected</button>
-        </div>
-        <div class="mt-auto pt-4 border-t border-gray-700 space-y-2">
-            <button id="add-new-key-btn" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">Add New Key</button>
-            <button id="import-export-btn" class="w-full bg-gray-600 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded">Import / Export</button>
+        <div class="mt-auto pt-4 border-t border-gray-700">
             <a href="/middleware/logout" class="block w-full text-center bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded">Logout</a>
         </div>
     </aside>
 
     <main class="w-3/4 h-full p-8 overflow-y-auto" id="dashboard-content"></main>
-    
+  
     <div id="toast" class="fixed bottom-8 right-8 text-white py-3 px-6 rounded-lg shadow-xl opacity-0 transform translate-y-4 z-50 pointer-events-none"></div>
-    <div id="key-modal" class="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center hidden z-50">
-         <div class="glass-card bg-gray-800 p-8 shadow-xl w-full max-w-md scale-in">
-            <h2 id="modal-title" class="text-2xl font-bold mb-6 text-white"></h2>
-            <form id="key-form"><input type="hidden" id="key-id">
-                <div class="mb-4"><label for="key-name" class="block mb-2 text-sm font-medium">Name</label><input type="text" id="key-name" class="w-full bg-gray-700 rounded p-3 border border-gray-600"></div>
-                <div class="mb-4"><label for="key-value" class="block mb-2 text-sm font-medium">Key Value</label><input type="text" id="key-value" class="w-full bg-gray-700 rounded p-3 border border-gray-600"></div>
-                <div class="mb-4"><label for="key-note" class="block mb-2 text-sm font-medium">Notes</label><textarea id="key-note" class="w-full bg-gray-700 rounded p-3 border border-gray-600" rows="3"></textarea></div>
-                <div id="manual-status-div" class="mb-6 hidden"><label for="key-status" class="block mb-2 text-sm font-medium">Status Override</label><select id="key-status" class="w-full bg-gray-700 rounded p-3 border border-gray-600"><option value="Healthy">Healthy</option><option value="Disabled">Disabled</option></select></div>
-                <div class="flex justify-end gap-4"><button type="button" onclick="closeModal()" class="bg-gray-600 hover:bg-gray-700 font-bold py-2 px-4 rounded">Cancel</button><button type="submit" class="bg-blue-600 hover:bg-blue-700 font-bold py-2 px-4 rounded">Save</button></div>
-            </form>
-        </div>
-    </div>
-    <div id="import-export-modal" class="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center hidden z-50">
-         <div class="glass-card bg-gray-800 p-8 shadow-xl w-full max-w-2xl scale-in">
-            <h2 class="text-2xl font-bold mb-6 text-white">Import / Export Keys</h2>
-            <div class="space-y-6">
-                <div>
-                    <h3 class="text-xl font-semibold mb-2">Export Keys</h3>
-                    <p class="text-sm text-gray-400 mb-4">Copy all your keys (including names and notes) as a JSON text block to your clipboard. Store this securely as a backup.</p>
-                    <button id="export-btn" class="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded">Copy to Clipboard</button>
-                </div>
-                <div class="border-t border-gray-700 my-6"></div>
-                <div>
-                    <h3 class="text-xl font-semibold mb-2">Import Keys</h3>
-                    <p class="text-sm text-gray-400 mb-4">Paste a JSON backup of your keys below. Existing keys (based on key value) will be skipped.</p>
-                    <textarea id="import-textarea" class="w-full bg-gray-900 text-gray-300 rounded p-3 border border-gray-600 font-mono" rows="8" placeholder='[{"name": "My Key", "key_value": "AIza...", "note": "This is a note."}]'></textarea>
-                    <button id="import-btn" class="mt-4 bg-purple-600 hover:bg-purple-700 text-white font-bold py-2 px-4 rounded">Import from Text</button>
-                </div>
-            </div>
-            <div class="flex justify-end mt-6">
-                <button type="button" onclick="closeImportExportModal()" class="bg-gray-600 hover:bg-gray-700 font-bold py-2 px-4 rounded">Close</button>
-            </div>
-        </div>
-    </div>
 
     <script src="{{ url_for('static', filename='js/dashboard.js') }}"></script>
 </body>

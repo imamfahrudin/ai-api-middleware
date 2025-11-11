@@ -84,6 +84,12 @@ def dashboard():
 def settings():
     return render_template('settings.html')
 
+# --- Keys Management Route ---
+@app.route('/middleware/keys')
+@login_required
+def keys():
+    return render_template('keys.html')
+
 # --- Main Execution ---
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))

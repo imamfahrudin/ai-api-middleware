@@ -449,7 +449,12 @@ def proxy(path):
                 content: "Hello, how are you?"
     """
     start_time = time.time()
-    
+
+    # --- Handle Static File Requests ---
+    if path == 'favicon.ico':
+        # Return a simple 404 for favicon requests to avoid proxying them
+        return '', 404
+
     # --- Universal Translator Logic ---
     target_base_url = "https://generativelanguage.googleapis.com/"
     provider_format = 'gemini' # Default to Gemini
