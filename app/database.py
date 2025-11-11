@@ -145,15 +145,17 @@ class KeyManager:
             cursor.execute("SELECT key_id, successes, requests, total_latency_ms FROM daily_stats WHERE date = ?", (today_str,))
             today_stats = {row['key_id']: row for row in cursor.fetchall()}
             
-            # Get total usage and last used for all keys
+            # Get total usage for all keys
             cursor.execute("""
-                SELECT key_id, 
-                       SUM(requests) as total_usage,
-                       MAX(date) as last_used_date
+                SELECT key_id, SUM(requests) as total_usage
                 FROM daily_stats 
                 GROUP BY key_id
             """)
             total_stats = {row['key_id']: row for row in cursor.fetchall()}
+            
+            # Get last_rotated_at for all keys (more accurate than daily stats dates)
+            cursor.execute("SELECT id, last_rotated_at FROM keys")
+            rotation_times = {row['id']: row['last_rotated_at'] for row in cursor.fetchall()}
 
         for key in keys:
             # Calculate KPI
@@ -169,14 +171,12 @@ class KeyManager:
             # Add usage stats
             key['usage_today'] = stats['requests'] if stats else 0
             
-            # Add total usage and last used
+            # Add total usage
             total = total_stats.get(key['id'])
-            if total:
-                key['total_usage'] = total['total_usage'] or 0
-                key['last_used'] = total['last_used_date']  # ISO date format
-            else:
-                key['total_usage'] = 0
-                key['last_used'] = None
+            key['total_usage'] = total['total_usage'] if total else 0
+            
+            # Add last used from rotation time (more accurate)
+            key['last_used'] = rotation_times.get(key['id'])
                 
         return keys
 
