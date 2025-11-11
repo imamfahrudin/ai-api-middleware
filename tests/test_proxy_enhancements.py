@@ -41,7 +41,7 @@ def test_stream_with_retry():
     mock_resp = Mock()
     mock_chunks = [b'chunk1', b'chunk2', b'chunk3']
 
-    def mock_iter_content(chunk_size, timeout):
+    def mock_iter_content(chunk_size):
         """Mock iter_content that yields chunks"""
         for chunk in mock_chunks:
             yield chunk

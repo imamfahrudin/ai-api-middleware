@@ -92,7 +92,7 @@ def stream_with_retry(resp, buffer_size, streaming_timeout, max_stream_retries=N
         response_closed = False
 
         try:
-            for chunk in resp.iter_content(chunk_size=buffer_size, timeout=streaming_timeout):
+            for chunk in resp.iter_content(chunk_size=buffer_size):
                 if chunk:
                     yield chunk
                     # Reset retry count on successful chunk
