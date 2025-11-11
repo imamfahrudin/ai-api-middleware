@@ -140,20 +140,44 @@ class KeyManager:
         
         with self.lock:
             cursor = self.conn.cursor()
+            
+            # Get today's stats
             cursor.execute("SELECT key_id, successes, requests, total_latency_ms FROM daily_stats WHERE date = ?", (today_str,))
             today_stats = {row['key_id']: row for row in cursor.fetchall()}
+            
+            # Get total usage and last used for all keys
+            cursor.execute("""
+                SELECT key_id, 
+                       SUM(requests) as total_usage,
+                       MAX(date) as last_used_date
+                FROM daily_stats 
+                GROUP BY key_id
+            """)
+            total_stats = {row['key_id']: row for row in cursor.fetchall()}
 
         for key in keys:
+            # Calculate KPI
             stats = today_stats.get(key['id'])
             if not stats or stats['requests'] == 0:
                 key['kpi'] = 100
-                continue
+            else:
+                success_rate = (stats['successes'] / stats['requests'])
+                avg_latency_ms = stats['total_latency_ms'] / stats['requests']
+                latency_score = max(0, 1 - (avg_latency_ms / 5000))
+                key['kpi'] = int((success_rate * 70) + (latency_score * 30))
             
-            success_rate = (stats['successes'] / stats['requests'])
-            avg_latency_ms = stats['total_latency_ms'] / stats['requests']
-            latency_score = max(0, 1 - (avg_latency_ms / 5000))
-
-            key['kpi'] = int((success_rate * 70) + (latency_score * 30))
+            # Add usage stats
+            key['usage_today'] = stats['requests'] if stats else 0
+            
+            # Add total usage and last used
+            total = total_stats.get(key['id'])
+            if total:
+                key['total_usage'] = total['total_usage'] or 0
+                key['last_used'] = total['last_used_date']  # ISO date format
+            else:
+                key['total_usage'] = 0
+                key['last_used'] = None
+                
         return keys
 
     def add_key(self, key_value, name=None, note=None):
