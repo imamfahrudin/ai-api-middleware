@@ -16,18 +16,71 @@ key_manager = KeyManager()
 
 # Performance optimization: Connection pooling for HTTP requests
 session = requests.Session()
-retry_strategy = Retry(
-    total=3,
-    backoff_factor=0.1,
-    status_forcelist=[429, 500, 502, 503, 504],
-)
-adapter = HTTPAdapter(
-    pool_connections=20,
-    pool_maxsize=100,
-    max_retries=retry_strategy
-)
-session.mount("http://", adapter)
-session.mount("https://", adapter)
+
+def configure_session_timeout(connect_timeout=10, read_timeout=60):
+    """Configure session with dynamic timeout settings"""
+    retry_strategy = Retry(
+        total=7,  # Increased from 3 for better reliability
+        backoff_factor=0.1,
+        status_forcelist=[429, 500, 502, 503, 504],
+        allowed_methods=["HEAD", "GET", "POST", "PUT", "DELETE", "OPTIONS", "TRACE"]
+    )
+    adapter = HTTPAdapter(
+        pool_connections=20,
+        pool_maxsize=100,
+        max_retries=retry_strategy
+    )
+    session.mount("http://", adapter)
+    session.mount("https://", adapter)
+
+    # Configure default timeouts for the session
+    session.timeout = (connect_timeout, read_timeout)
+
+# Initialize with default timeouts
+configure_session_timeout()
+
+def stream_with_retry(resp, buffer_size, streaming_timeout, max_stream_retries=2):
+    """
+    Stream content with retry logic for failed chunks.
+    Returns a generator that yields chunks with retry capability.
+    """
+    retry_count = 0
+    chunk_retry_delay = 1.0  # Start with 1 second delay
+
+    def stream_generator():
+        nonlocal retry_count, chunk_retry_delay
+        response_closed = False
+
+        try:
+            for chunk in resp.iter_content(chunk_size=buffer_size, timeout=streaming_timeout):
+                if chunk:
+                    yield chunk
+                    # Reset retry count on successful chunk
+                    retry_count = 0
+                    chunk_retry_delay = 1.0
+
+        except Exception as e:
+            retry_count += 1
+            if retry_count <= max_stream_retries:
+                add_log_entry(f"Streaming chunk failed (attempt {retry_count}/{max_stream_retries}): {e}. Retrying in {chunk_retry_delay}s...", "text-orange-400")
+                time.sleep(chunk_retry_delay)
+                chunk_retry_delay *= 2  # Exponential backoff
+                # Continue trying to read remaining chunks
+                for remaining_chunk in stream_generator():
+                    yield remaining_chunk
+            else:
+                add_log_entry(f"Streaming failed after {max_stream_retries} retry attempts: {e}", "text-red-500")
+                raise  # Re-raise the exception after max retries
+
+        finally:
+            if not response_closed and hasattr(resp, 'close'):
+                try:
+                    resp.close()
+                    response_closed = True
+                except Exception as close_error:
+                    add_log_entry(f"Failed to close response in stream_with_retry: {close_error}", "text-orange-500")
+
+    return stream_generator()
 
 # Performance optimization: Cache for model discovery responses
 _model_cache = {}
@@ -434,12 +487,55 @@ def proxy(path):
             connection_pooling_enabled = key_manager.get_setting('connection_pooling_enabled', 'true').lower() == 'true'
             buffer_size_setting = key_manager.get_setting('buffer_size', '8192')
             enable_request_id_injection = key_manager.get_setting('enable_request_id_injection', 'true').lower() == 'true'
+            request_timeout_setting = key_manager.get_setting('request_timeout', '30')
+            connect_timeout_setting = key_manager.get_setting('connect_timeout', '10')
+            read_timeout_setting = key_manager.get_setting('read_timeout', '60')
+            streaming_timeout_setting = key_manager.get_setting('streaming_timeout', '120')
 
-            # Convert buffer_size to int with fallback
+            # Convert settings to appropriate types with fallbacks
             try:
                 buffer_size = int(buffer_size_setting)
             except (ValueError, TypeError):
                 buffer_size = 8192
+
+            # Optimize buffer size based on content type and request characteristics
+            content_type = headers.get('Content-Type', '')
+            request_size = len(request_data) if request_data else 0
+
+            # Smaller buffers for small requests or text responses
+            if request_size < 1024 or 'text/' in content_type:
+                buffer_size = min(buffer_size, 4096)
+            # Larger buffers for binary/large content
+            elif request_size > 100000 or 'application/octet-stream' in content_type:
+                buffer_size = max(buffer_size, 16384)
+
+            # Ensure buffer size is within reasonable bounds
+            buffer_size = max(1024, min(buffer_size, 65536))
+
+            add_log_entry(f"Using optimized buffer size: {buffer_size} bytes (request: {request_size} bytes)", "text-gray-400")
+
+            try:
+                request_timeout = int(request_timeout_setting)
+            except (ValueError, TypeError):
+                request_timeout = 30
+
+            try:
+                connect_timeout = int(connect_timeout_setting)
+            except (ValueError, TypeError):
+                connect_timeout = 10
+
+            try:
+                read_timeout = int(read_timeout_setting)
+            except (ValueError, TypeError):
+                read_timeout = 60
+
+            try:
+                streaming_timeout = int(streaming_timeout_setting)
+            except (ValueError, TypeError):
+                streaming_timeout = 120
+
+            # Create timeout tuple for requests (connect_timeout, read_timeout)
+            request_timeout_tuple = (connect_timeout, min(read_timeout, streaming_timeout))
 
             # Add request ID if enabled
             if enable_request_id_injection:
@@ -449,11 +545,14 @@ def proxy(path):
 
             # Choose request method based on settings
             if connection_pooling_enabled:
+                # Reconfigure session with current timeout settings
+                configure_session_timeout(connect_timeout, min(read_timeout, streaming_timeout))
+
                 # Use session with connection pooling
-                resp = session.request(method=request.method, url=target_url, headers=headers, data=request_data, params=request_params, stream=streaming_enabled)
+                resp = session.request(method=request.method, url=target_url, headers=headers, data=request_data, params=request_params, stream=streaming_enabled, timeout=request_timeout_tuple)
             else:
                 # Use direct requests without connection pooling
-                resp = requests.request(method=request.method, url=target_url, headers=headers, data=request_data, params=request_params, stream=streaming_enabled)
+                resp = requests.request(method=request.method, url=target_url, headers=headers, data=request_data, params=request_params, stream=streaming_enabled, timeout=request_timeout_tuple)
 
             latency_ms = int((time.time() - start_time) * 1000)
 
@@ -467,34 +566,52 @@ def proxy(path):
                         nonlocal tokens_in, tokens_out
                         json_start_buffer = b""
                         json_buffer_size = 0
+                        streaming_error = False
+                        response_closed = False
 
-                        for chunk in resp.iter_content(chunk_size=buffer_size):
-                            if chunk:
-                                # Yield chunk immediately for streaming
-                                yield chunk
-
-                                # Performance optimization: Only buffer first 2KB for token extraction
-                                if json_buffer_size < 2048:
-                                    remaining = 2048 - json_buffer_size
-                                    json_start_buffer += chunk[:remaining]
-                                    json_buffer_size += len(chunk)
-
-                        # Parse token usage from buffered content
                         try:
-                            if json_start_buffer:
-                                data = json.loads(json_start_buffer.decode('utf-8', errors='ignore'))
-                                # Google's OpenAI-compatible endpoint uses 'usage' like OpenAI
-                                if 'usage' in data:
-                                    usage = data.get('usage', {})
-                                    tokens_in = usage.get('prompt_tokens', 0)
-                                    tokens_out = usage.get('completion_tokens', 0)
-                                # Native Gemini endpoint uses 'usageMetadata'
-                                elif 'usageMetadata' in data:
-                                    usage = data.get('usageMetadata', {})
-                                    tokens_in = usage.get('promptTokenCount', 0)
-                                    tokens_out = usage.get('candidatesTokenCount', 0)
-                        except (json.JSONDecodeError, KeyError, UnicodeDecodeError):
-                            pass
+                            # Use stream_with_retry for robust streaming with retries
+                            for chunk in stream_with_retry(resp, buffer_size, streaming_timeout, max_stream_retries=2):
+                                if chunk:
+                                    # Yield chunk immediately for streaming
+                                    yield chunk
+
+                                    # Performance optimization: Only buffer first 2KB for token extraction
+                                    if json_buffer_size < 2048:
+                                        remaining = 2048 - json_buffer_size
+                                        json_start_buffer += chunk[:remaining]
+                                        json_buffer_size += len(chunk)
+                        except Exception as e:
+                            # Log streaming errors but still try to provide partial response
+                            add_log_entry(f"Streaming error after retries: {e}. Attempting graceful degradation.", "text-orange-500")
+                            streaming_error = True
+
+                            # Try to extract any remaining content from the response
+                            try:
+                                remaining_content = resp.content
+                                if remaining_content:
+                                    add_log_entry(f"Providing partial response: {len(remaining_content)} bytes", "text-yellow-500")
+                                    yield remaining_content
+                            except Exception as fallback_error:
+                                add_log_entry(f"Failed to provide partial response: {fallback_error}", "text-red-500")
+
+                        # Parse token usage from buffered content only if no streaming errors
+                        if not streaming_error:
+                            try:
+                                if json_start_buffer:
+                                    data = json.loads(json_start_buffer.decode('utf-8', errors='ignore'))
+                                    # Google's OpenAI-compatible endpoint uses 'usage' like OpenAI
+                                    if 'usage' in data:
+                                        usage = data.get('usage', {})
+                                        tokens_in = usage.get('prompt_tokens', 0)
+                                        tokens_out = usage.get('completion_tokens', 0)
+                                    # Native Gemini endpoint uses 'usageMetadata'
+                                    elif 'usageMetadata' in data:
+                                        usage = data.get('usageMetadata', {})
+                                        tokens_in = usage.get('promptTokenCount', 0)
+                                        tokens_out = usage.get('candidatesTokenCount', 0)
+                            except (json.JSONDecodeError, KeyError, UnicodeDecodeError):
+                                pass
 
                     # Create and return the streaming response
                     response = Response(generate(), status=resp.status_code, content_type=resp.headers.get('Content-Type'))
@@ -518,6 +635,13 @@ def proxy(path):
 
                     response = Response(response_content, status=resp.status_code, content_type=resp.headers.get('Content-Type'))
 
+                # Ensure response cleanup for non-streaming responses
+                try:
+                    if hasattr(resp, 'close'):
+                        resp.close()
+                except Exception as cleanup_error:
+                    add_log_entry(f"Non-streaming response cleanup failed: {cleanup_error}", "text-orange-500")
+
                 # Update stats after creating response
                 key_manager.update_key_stats(key_id, True, model_name,
                     error_code=None, tokens_in=tokens_in, tokens_out=tokens_out, latency_ms=latency_ms)
@@ -539,9 +663,15 @@ def proxy(path):
                 if streaming_enabled:
                     # Performance optimization: Stream error responses too
                     def error_generate():
-                        for chunk in resp.iter_content(chunk_size=buffer_size):
-                            if chunk:
-                                yield chunk
+                        response_closed = False
+                        try:
+                            # Use stream_with_retry for robust error streaming with retries
+                            for chunk in stream_with_retry(resp, buffer_size, streaming_timeout, max_stream_retries=2):
+                                if chunk:
+                                    yield chunk
+                        except Exception as e:
+                            # Log error response streaming issues
+                            add_log_entry(f"Error response streaming failed after retries: {e}", "text-orange-500")
 
                     return Response(error_generate(), status=resp.status_code, content_type=resp.headers.get('Content-Type'))
                 else:
