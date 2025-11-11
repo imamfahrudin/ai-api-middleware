@@ -303,7 +303,7 @@
                             </div>
                         </div>
                         <p class="text-gray-400 text-sm mb-3">Maximum number of retry attempts for failed requests</p>
-                        <input type="number" id="retry-total-input" class="w-full bg-gray-700 text-white rounded-md p-2 border border-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500" value="7" min="0" max="20">
+                        <input type="number" id="retry-total-input" class="w-full bg-gray-700 text-white rounded-md p-2 border border-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500" value="50" min="0" max="20">
                     </div>
 
                     <!-- Retry Backoff Factor -->
@@ -832,7 +832,7 @@
             model_cache_timeout: 10,
 
             // Connection & Retry Settings
-            retry_total: 7,
+            retry_total: 50,
             retry_backoff_factor: 0.1,
             pool_connections: 20,
             pool_maxsize: 100,

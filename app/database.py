@@ -454,7 +454,7 @@ class KeyManager:
             'streaming_timeout': '120',
 
             # Connection & Retry Settings
-            'retry_total': '7',
+            'retry_total': '50',
             'retry_backoff_factor': '0.1',
             'pool_connections': '20',
             'pool_maxsize': '100',
