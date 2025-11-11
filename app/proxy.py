@@ -106,13 +106,18 @@ def stream_with_retry(resp, buffer_size, streaming_timeout, max_stream_retries=N
                 time.sleep(chunk_retry_delay)
                 chunk_retry_delay *= 2  # Exponential backoff
                 # Continue trying to read remaining chunks
-                for remaining_chunk in stream_generator():
-                    yield remaining_chunk
+                try:
+                    for remaining_chunk in stream_generator():
+                        yield remaining_chunk
+                except Exception:
+                    # Don't recurse infinitely on repeated errors
+                    pass
             else:
                 add_log_entry(f"Streaming failed after {max_stream_retries} retry attempts: {e}", "text-red-500")
-                raise  # Re-raise the exception after max retries
+                # Don't raise - just stop streaming to allow graceful degradation
 
         finally:
+            # Always close the response when generator is exhausted or exits
             if not response_closed and hasattr(resp, 'close'):
                 try:
                     resp.close()
@@ -719,8 +724,15 @@ def proxy(path):
                             except (json.JSONDecodeError, KeyError, UnicodeDecodeError):
                                 pass
 
-                    # Create and return the streaming response
-                    response = Response(generate(), status=resp.status_code, content_type=resp.headers.get('Content-Type'))
+                    # Create streaming response with proper headers
+                    response = Response(generate(), status=resp.status_code)
+                    
+                    # Copy important headers from upstream response
+                    for header_name in ['Content-Type', 'Transfer-Encoding', 'Cache-Control']:
+                        if header_name in resp.headers:
+                            response.headers[header_name] = resp.headers[header_name]
+                    
+                    # Don't close resp here - let the generator handle it
                 else:
                     # Traditional non-streaming response
                     response_content = resp.content
@@ -741,12 +753,12 @@ def proxy(path):
 
                     response = Response(response_content, status=resp.status_code, content_type=resp.headers.get('Content-Type'))
 
-                # Ensure response cleanup for non-streaming responses
-                try:
-                    if hasattr(resp, 'close'):
-                        resp.close()
-                except Exception as cleanup_error:
-                    add_log_entry(f"Non-streaming response cleanup failed: {cleanup_error}", "text-orange-500")
+                    # Ensure response cleanup for non-streaming responses only
+                    try:
+                        if hasattr(resp, 'close'):
+                            resp.close()
+                    except Exception as cleanup_error:
+                        add_log_entry(f"Non-streaming response cleanup failed: {cleanup_error}", "text-orange-500")
 
                 # Update stats after creating response
                 key_manager.update_key_stats(key_id, True, model_name,
