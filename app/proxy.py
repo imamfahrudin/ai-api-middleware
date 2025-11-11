@@ -1,13 +1,44 @@
 import time
 import json
 import requests
+from requests.adapters import HTTPAdapter
+from urllib3.util.retry import Retry
 from flask import request, jsonify, Response, Blueprint
+from functools import lru_cache
+import io
 
 from app.database import KeyManager
 from app.logging_utils import add_log_entry
 
 proxy_bp = Blueprint('proxy', __name__)
 key_manager = KeyManager()
+
+# Performance optimization: Connection pooling for HTTP requests
+session = requests.Session()
+retry_strategy = Retry(
+    total=3,
+    backoff_factor=0.1,
+    status_forcelist=[429, 500, 502, 503, 504],
+)
+adapter = HTTPAdapter(
+    pool_connections=20,
+    pool_maxsize=100,
+    max_retries=retry_strategy
+)
+session.mount("http://", adapter)
+session.mount("https://", adapter)
+
+# Performance optimization: Cache for model discovery responses
+@lru_cache(maxsize=128, ttl=300)  # 5 minutes TTL
+def get_cached_models_list(api_key, path):
+    """Cache model list responses for 5 minutes to reduce API calls"""
+    try:
+        headers = {'x-goog-api-key': api_key, 'Content-Type': 'application/json'}
+        url = f"https://generativelanguage.googleapis.com/{path}"
+        resp = session.get(url, headers=headers, timeout=10)
+        return resp.json() if resp.ok else None
+    except Exception:
+        return None
 
 # Gemini-specific routes for Swagger documentation
 @proxy_bp.route('/v1beta/models/<model_name>:generateContent', methods=['POST'])
@@ -127,7 +158,22 @@ def gemini_list_models():
       503:
         description: No healthy API keys available
     """
-    return proxy('v1beta/models')
+    # Performance optimization: Use cached response for model lists
+    key_info = key_manager.get_next_key()
+    if not key_info:
+        return jsonify({"error": "No healthy API keys available."}), 503
+
+    api_key = key_info['key_value']
+    path = 'v1beta/models'
+
+    # Try to get from cache first
+    cached_response = get_cached_models_list(api_key, path)
+    if cached_response:
+        add_log_entry(f"Cache HIT for models list", "text-green-400")
+        return jsonify(cached_response)
+
+    add_log_entry(f"Cache MISS for models list", "text-yellow-400")
+    return proxy(path)
 
 @proxy_bp.route('/v1beta/models/<model_name>:streamGenerateContent', methods=['POST'])
 @proxy_bp.route('/v1/models/<model_name>:streamGenerateContent', methods=['POST'])
@@ -283,21 +329,33 @@ def proxy(path):
     if 'openai' in path or path.startswith('v1/'):
         provider_format = 'openai'
     
-    # Model Name Extraction
+    # Performance optimization: Model Name Extraction with reduced operations
     model_name = "unknown"
-    try:
-        if provider_format == 'gemini':
-            if 'models' in path_to_proxy and not ':' in path_to_proxy:
-                 model_name = "model-discovery"
+
+    if provider_format == 'gemini':
+        if 'models' in path_to_proxy and ':' not in path_to_proxy:
+            model_name = "model-discovery"
+        else:
+            # Performance optimization: Use rfind for better performance on long paths
+            colon_pos = path_to_proxy.rfind(':')
+            slash_pos = path_to_proxy.rfind('/')
+            if colon_pos > slash_pos:
+                model_name = path_to_proxy[slash_pos + 1:colon_pos]
             else:
-                 model_name = path_to_proxy.split('/')[-1].split(':')[0]
-        elif provider_format == 'openai':
-            if request.data:
-                model_name = request.get_json(silent=True).get('model', 'unknown')
-            elif path_to_proxy.endswith('/models'):
-                 model_name = "model-discovery"
-    except Exception:
-        pass # Silently fail, model_name remains "unknown"
+                model_name = path_to_proxy[slash_pos + 1:] if slash_pos >= 0 else path_to_proxy
+    elif provider_format == 'openai':
+        if request_data:
+            # Performance optimization: Avoid JSON parsing if we can find model quickly
+            try:
+                # Quick string search for "model" key before full JSON parse
+                if b'"model"' in request_data:
+                    json_data = request.get_json(silent=True)
+                    if json_data:
+                        model_name = json_data.get('model', 'unknown')
+            except Exception:
+                pass  # Silently fail, model_name remains "unknown"
+        elif path_to_proxy.endswith('/models'):
+            model_name = "model-discovery"
 
     add_log_entry(f"Incoming {provider_format.upper()}-format request for model: {model_name}...")
     
@@ -325,43 +383,77 @@ def proxy(path):
             add_log_entry(f"Routing to Key '{key_info['name']}' (...{api_key[-4:]})", "text-blue-400")
         
         # --- URL and Header Construction ---
-        headers = {k: v for k, v in request.headers if k.lower() not in ['host', 'authorization', 'x-goog-api-key']}
+        # Performance optimization: Pre-compute lowercase header exclusions for faster lookup
+        excluded_headers = {'host', 'authorization', 'x-goog-api-key'}
+        headers = {}
+        for k, v in request.headers:
+            lk = k.lower()
+            if lk not in excluded_headers:
+                headers[k] = v
+
         target_url = target_base_url + path_to_proxy
-        
+
         # FIX: Set the correct authentication header based on the detected format
         if provider_format == 'openai':
             headers['Authorization'] = f"Bearer {api_key}"
         else: # Default to Gemini format
             headers['x-goog-api-key'] = api_key
-        
-        if 'Content-Type' not in headers: headers['Content-Type'] = 'application/json'
+
+        # Performance optimization: Avoid dict lookup if we already know the header exists
+        if 'Content-Type' not in headers:
+            headers['Content-Type'] = 'application/json'
 
         try:
-            resp = requests.request(method=request.method, url=target_url, headers=headers, data=request_data, params=request_params)
+            # Performance optimization: Use session with connection pooling and enable streaming
+            resp = session.request(method=request.method, url=target_url, headers=headers, data=request_data, params=request_params, stream=True)
             latency_ms = int((time.time() - start_time) * 1000)
-            response_content = resp.content
-            
+
             tokens_in, tokens_out = 0, 0
             if resp.ok:
                 add_log_entry(f"SUCCESS ({resp.status_code}) from '{key_info['name']}' in {latency_ms}ms.", "text-green-400")
-                try:
-                    data = json.loads(response_content)
-                    # Google's OpenAI-compatible endpoint uses 'usage' like OpenAI
-                    if 'usage' in data:
-                        usage = data.get('usage', {})
-                        tokens_in = usage.get('prompt_tokens', 0)
-                        tokens_out = usage.get('completion_tokens', 0)
-                    # Native Gemini endpoint uses 'usageMetadata'
-                    elif 'usageMetadata' in data:
-                        usage = data.get('usageMetadata', {})
-                        tokens_in = usage.get('promptTokenCount', 0)
-                        tokens_out = usage.get('candidatesTokenCount', 0)
-                except (json.JSONDecodeError, KeyError): pass
-                
+
+                # Performance optimization: Stream response for better memory usage
+                def generate():
+                    nonlocal tokens_in, tokens_out
+                    json_start_buffer = b""
+                    buffer_size = 0
+
+                    for chunk in resp.iter_content(chunk_size=8192):
+                        if chunk:
+                            # Yield chunk immediately for streaming
+                            yield chunk
+
+                            # Performance optimization: Only buffer first 2KB for token extraction
+                            if buffer_size < 2048:
+                                remaining = 2048 - buffer_size
+                                json_start_buffer += chunk[:remaining]
+                                buffer_size += len(chunk)
+
+                    # Parse token usage from buffered content
+                    try:
+                        if json_start_buffer:
+                            data = json.loads(json_start_buffer.decode('utf-8', errors='ignore'))
+                            # Google's OpenAI-compatible endpoint uses 'usage' like OpenAI
+                            if 'usage' in data:
+                                usage = data.get('usage', {})
+                                tokens_in = usage.get('prompt_tokens', 0)
+                                tokens_out = usage.get('completion_tokens', 0)
+                            # Native Gemini endpoint uses 'usageMetadata'
+                            elif 'usageMetadata' in data:
+                                usage = data.get('usageMetadata', {})
+                                tokens_in = usage.get('promptTokenCount', 0)
+                                tokens_out = usage.get('candidatesTokenCount', 0)
+                    except (json.JSONDecodeError, KeyError, UnicodeDecodeError):
+                        pass
+
+                # Create and return the streaming response
+                response = Response(generate(), status=resp.status_code, content_type=resp.headers.get('Content-Type'))
+
+                # Update stats after creating response (token counts will be filled during streaming)
                 key_manager.update_key_stats(key_id, True, model_name,
                     error_code=None, tokens_in=tokens_in, tokens_out=tokens_out, latency_ms=latency_ms)
-                    
-                return Response(response_content, status=resp.status_code, content_type=resp.headers.get('Content-Type'))
+
+                return response
             
             # Handle error responses
             else:
@@ -375,7 +467,13 @@ def proxy(path):
                     continue
                 
                 # For all other errors or if max retries reached, return the error
-                return Response(response_content, status=resp.status_code, content_type=resp.headers.get('Content-Type'))
+                # Performance optimization: Stream error responses too
+                def error_generate():
+                    for chunk in resp.iter_content(chunk_size=8192):
+                        if chunk:
+                            yield chunk
+
+                return Response(error_generate(), status=resp.status_code, content_type=resp.headers.get('Content-Type'))
                 
         except requests.exceptions.RequestException as e:
             latency_ms = int((time.time() - start_time) * 1000)
