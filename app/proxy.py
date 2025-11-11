@@ -86,10 +86,16 @@ def stream_with_retry(resp, buffer_size, streaming_timeout, max_stream_retries=N
         chunk_retry_delay = 1.0
 
     retry_count = 0
+    recursion_depth = 0  # DEBUG: Track recursion depth to detect potential stack overflow
 
     def stream_generator():
-        nonlocal retry_count, chunk_retry_delay
+        nonlocal retry_count, chunk_retry_delay, recursion_depth
         response_closed = False
+        
+        # DEBUG: Track recursion depth
+        recursion_depth += 1
+        if recursion_depth > 5:  # Arbitrary threshold to detect problematic recursion
+            add_log_entry(f"BUG WARNING: Excessive recursion depth detected: {recursion_depth}", "text-red-600")
 
         try:
             for chunk in resp.iter_content(chunk_size=buffer_size):
@@ -102,15 +108,16 @@ def stream_with_retry(resp, buffer_size, streaming_timeout, max_stream_retries=N
         except Exception as e:
             retry_count += 1
             if retry_count <= max_stream_retries:
-                add_log_entry(f"Streaming chunk failed (attempt {retry_count}/{max_stream_retries}): {e}. Retrying in {chunk_retry_delay}s...", "text-orange-400")
+                add_log_entry(f"Streaming chunk failed (attempt {retry_count}/{max_stream_retries}, recursion depth: {recursion_depth}): {e}. Retrying in {chunk_retry_delay}s...", "text-orange-400")
                 time.sleep(chunk_retry_delay)
                 chunk_retry_delay *= 2  # Exponential backoff
                 # Continue trying to read remaining chunks
                 try:
                     for remaining_chunk in stream_generator():
                         yield remaining_chunk
-                except Exception:
+                except Exception as recurse_error:
                     # Don't recurse infinitely on repeated errors
+                    add_log_entry(f"BUG CONFIRMED: Recursive streaming failed: {recurse_error}", "text-red-600")
                     pass
             else:
                 add_log_entry(f"Streaming failed after {max_stream_retries} retry attempts: {e}", "text-red-500")
@@ -124,6 +131,9 @@ def stream_with_retry(resp, buffer_size, streaming_timeout, max_stream_retries=N
                     response_closed = True
                 except Exception as close_error:
                     add_log_entry(f"Failed to close response in stream_with_retry: {close_error}", "text-orange-500")
+            
+            # DEBUG: Decrement recursion depth when exiting
+            recursion_depth -= 1
 
     return stream_generator()
 
@@ -484,17 +494,25 @@ def proxy(path):
             else:
                 model_name = path_to_proxy[slash_pos + 1:] if slash_pos >= 0 else path_to_proxy
     elif provider_format == 'openai':
-        if request_data:
-            # Performance optimization: Avoid JSON parsing if we can find model quickly
-            try:
-                # Quick string search for "model" key before full JSON parse
-                if b'"model"' in request_data:
-                    json_data = request.get_json(silent=True)
-                    if json_data:
-                        model_name = json_data.get('model', 'unknown')
-            except Exception:
-                pass  # Silently fail, model_name remains "unknown"
-        elif path_to_proxy.endswith('/models'):
+        # DEBUG: Check if request_data is defined before using it
+        try:
+            if request_data:
+                add_log_entry(f"DEBUG: request_data found with length: {len(request_data)}", "text-blue-300")
+                # Performance optimization: Avoid JSON parsing if we can find model quickly
+                try:
+                    # Quick string search for "model" key before full JSON parse
+                    if b'"model"' in request_data:
+                        json_data = request.get_json(silent=True)
+                        if json_data:
+                            model_name = json_data.get('model', 'unknown')
+                except Exception:
+                    pass  # Silently fail, model_name remains "unknown"
+            else:
+                add_log_entry("DEBUG: request_data is None or empty", "text-blue-300")
+        except NameError as e:
+            add_log_entry(f"BUG CONFIRMED: request_data used before definition - {e}", "text-red-600")
+            
+        if path_to_proxy.endswith('/models'):
             model_name = "model-discovery"
 
     add_log_entry(f"Incoming {provider_format.upper()}-format request for model: {model_name}...")
