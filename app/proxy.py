@@ -1,6 +1,7 @@
 import time
 import json
 import requests
+import uuid
 from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
 from flask import request, jsonify, Response, Blueprint
@@ -431,6 +432,20 @@ def proxy(path):
             # Get settings for this request
             streaming_enabled = key_manager.get_setting('streaming_enabled', 'true').lower() == 'true'
             connection_pooling_enabled = key_manager.get_setting('connection_pooling_enabled', 'true').lower() == 'true'
+            buffer_size_setting = key_manager.get_setting('buffer_size', '8192')
+            enable_request_id_injection = key_manager.get_setting('enable_request_id_injection', 'true').lower() == 'true'
+
+            # Convert buffer_size to int with fallback
+            try:
+                buffer_size = int(buffer_size_setting)
+            except (ValueError, TypeError):
+                buffer_size = 8192
+
+            # Add request ID if enabled
+            if enable_request_id_injection:
+                request_id = str(uuid.uuid4())
+                headers['X-Request-ID'] = request_id
+                add_log_entry(f"Request ID injected: {request_id}", "text-gray-400")
 
             # Choose request method based on settings
             if connection_pooling_enabled:
@@ -451,18 +466,18 @@ def proxy(path):
                     def generate():
                         nonlocal tokens_in, tokens_out
                         json_start_buffer = b""
-                        buffer_size = 0
+                        json_buffer_size = 0
 
-                        for chunk in resp.iter_content(chunk_size=8192):
+                        for chunk in resp.iter_content(chunk_size=buffer_size):
                             if chunk:
                                 # Yield chunk immediately for streaming
                                 yield chunk
 
                                 # Performance optimization: Only buffer first 2KB for token extraction
-                                if buffer_size < 2048:
-                                    remaining = 2048 - buffer_size
+                                if json_buffer_size < 2048:
+                                    remaining = 2048 - json_buffer_size
                                     json_start_buffer += chunk[:remaining]
-                                    buffer_size += len(chunk)
+                                    json_buffer_size += len(chunk)
 
                         # Parse token usage from buffered content
                         try:
@@ -524,7 +539,7 @@ def proxy(path):
                 if streaming_enabled:
                     # Performance optimization: Stream error responses too
                     def error_generate():
-                        for chunk in resp.iter_content(chunk_size=8192):
+                        for chunk in resp.iter_content(chunk_size=buffer_size):
                             if chunk:
                                 yield chunk
 

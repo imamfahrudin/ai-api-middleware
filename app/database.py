@@ -19,6 +19,7 @@ class KeyManager:
         self._cache_ttl = 10  # 10 second TTL
         self._initialize_db()
         self._migrate_from_env()
+        self.ensure_default_settings()
 
     def _get_cached(self, key, compute_func, *args, **kwargs):
         """Get cached result or compute and cache it."""
@@ -98,19 +99,8 @@ class KeyManager:
                 )
             """)
 
-            # Insert default settings if they don't exist
-            default_settings = {
-                'streaming_enabled': 'true',
-                'connection_pooling_enabled': 'true',
-                'model_cache_enabled': 'true',
-                'max_retries': '7',
-                'request_timeout': '30'
-            }
-
-            for key, value in default_settings.items():
-                cursor.execute("""
-                    INSERT OR IGNORE INTO settings (key, value) VALUES (?, ?)
-                """, (key, value))
+            # Note: Default settings are handled by ensure_default_settings() method
+            # This ensures consistency between initialization and runtime checks
 
             self.conn.commit()
 
@@ -418,14 +408,22 @@ class KeyManager:
             cursor.execute("SELECT key, value FROM settings")
             settings = {}
             for row in cursor.fetchall():
-                # Convert string values to appropriate types
-                value = row['value']
-                if value.lower() in ('true', 'false'):
-                    settings[row['key']] = value.lower() == 'true'
-                elif value.isdigit():
-                    settings[row['key']] = int(value)
-                else:
-                    settings[row['key']] = value
+                try:
+                    # Convert string values to appropriate types
+                    value = row['value']
+                    if value is None:
+                        continue
+                    elif value.lower() in ('true', 'false'):
+                        settings[row['key']] = value.lower() == 'true'
+                    elif value.lstrip('-').isdigit():
+                        settings[row['key']] = int(value)
+                    else:
+                        settings[row['key']] = value
+                except (AttributeError, ValueError) as e:
+                    # Skip corrupted settings and log warning
+                    import logging
+                    logging.warning(f"Skipping corrupted setting {row['key']}: {value} - {e}")
+                    continue
             return settings
 
     def update_settings(self, settings_dict):
@@ -440,4 +438,64 @@ class KeyManager:
                     value = excluded.value,
                     updated_at = CURRENT_TIMESTAMP
                 """, (key, str(value)))
+            self.conn.commit()
+
+    def ensure_default_settings(self):
+        """Ensure all required default settings exist in the database."""
+        default_settings = {
+            # Performance Settings
+            'streaming_enabled': 'true',
+            'connection_pooling_enabled': 'true',
+            'model_cache_enabled': 'true',
+            'max_retries': '7',
+            'request_timeout': '30',
+
+            # Logging & Monitoring Settings
+            'enable_request_logging': 'true',
+            'log_level': 'INFO',
+            'enable_metrics_collection': 'true',
+            'enable_performance_logging': 'true',
+            'log_request_body': 'false',
+            'log_response_body': 'false',
+
+            # Rate Limiting Settings
+            'enable_rate_limiting': 'false',
+            'requests_per_minute': '60',
+            'rate_limiting_strategy': 'sliding_window',
+            'burst_allowance': '10',
+
+            # Security Settings
+            'enable_cors': 'true',
+            'cors_origins': '*',
+            'enable_request_validation': 'false',
+            'max_request_size': '10485760',
+            'blocked_user_agents': '',
+
+            # Advanced Proxy Settings
+            'enable_health_checks': 'true',
+            'health_check_interval': '300',
+            'failover_strategy': 'round_robin',
+            'enable_circuit_breaker': 'false',
+            'circuit_breaker_threshold': '5',
+            'enable_request_id_injection': 'true',
+
+            # Performance Fine-tuning
+            'buffer_size': '8192',
+            'max_concurrent_requests': '100',
+            'keepalive_timeout': '30',
+            'enable_graceful_shutdown': 'true',
+            'cache_max_age': '300'
+        }
+
+        with self.lock:
+            cursor = self.conn.cursor()
+            for key, default_value in default_settings.items():
+                cursor.execute("SELECT value FROM settings WHERE key = ?", (key,))
+                row = cursor.fetchone()
+                if not row:
+                    # Insert missing default setting
+                    cursor.execute("""
+                        INSERT INTO settings (key, value, updated_at)
+                        VALUES (?, ?, CURRENT_TIMESTAMP)
+                    """, (key, default_value))
             self.conn.commit()

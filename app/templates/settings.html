@@ -125,6 +125,235 @@
                 </div>
             </div>
 
+            <!-- Logging & Monitoring Settings -->
+            <div class="bg-gray-800 rounded-lg p-6 mb-6">
+                <h2 class="text-xl font-semibold text-white mb-4 flex items-center gap-2">
+                    <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                    </svg>
+                    Logging & Monitoring
+                </h2>
+
+                <div class="space-y-4">
+                    <!-- Enable Request Logging -->
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <h3 class="text-white font-medium">Enable Request Logging</h3>
+                            <p class="text-gray-400 text-sm">Log all incoming requests for debugging</p>
+                        </div>
+                        <label class="relative inline-flex items-center cursor-pointer">
+                            <input type="checkbox" id="enable-request-logging-toggle" class="sr-only peer" checked>
+                            <div class="w-11 h-6 bg-gray-600 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                        </label>
+                    </div>
+
+                    <!-- Log Level -->
+                    <div>
+                        <h3 class="text-white font-medium mb-2">Log Level</h3>
+                        <p class="text-gray-400 text-sm mb-3">Minimum level of logs to capture</p>
+                        <select id="log-level-select" class="w-full bg-gray-700 text-white rounded-md p-2 border border-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                            <option value="DEBUG">DEBUG</option>
+                            <option value="INFO" selected>INFO</option>
+                            <option value="WARNING">WARNING</option>
+                            <option value="ERROR">ERROR</option>
+                        </select>
+                    </div>
+
+                    <!-- Enable Metrics Collection -->
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <h3 class="text-white font-medium">Enable Metrics Collection</h3>
+                            <p class="text-gray-400 text-sm">Collect performance metrics and statistics</p>
+                        </div>
+                        <label class="relative inline-flex items-center cursor-pointer">
+                            <input type="checkbox" id="enable-metrics-collection-toggle" class="sr-only peer" checked>
+                            <div class="w-11 h-6 bg-gray-600 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                        </label>
+                    </div>
+
+                    <!-- Enable Performance Logging -->
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <h3 class="text-white font-medium">Enable Performance Logging</h3>
+                            <p class="text-gray-400 text-sm">Log detailed performance metrics</p>
+                        </div>
+                        <label class="relative inline-flex items-center cursor-pointer">
+                            <input type="checkbox" id="enable-performance-logging-toggle" class="sr-only peer" checked>
+                            <div class="w-11 h-6 bg-gray-600 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                        </label>
+                    </div>
+
+                    <!-- Log Request/Response Bodies -->
+                    <div class="grid grid-cols-2 gap-4">
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <h3 class="text-white font-medium text-sm">Log Request Body</h3>
+                                <p class="text-gray-400 text-xs">Include request payloads in logs</p>
+                            </div>
+                            <label class="relative inline-flex items-center cursor-pointer">
+                                <input type="checkbox" id="log-request-body-toggle" class="sr-only peer">
+                                <div class="w-9 h-5 bg-gray-600 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-blue-600"></div>
+                            </label>
+                        </div>
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <h3 class="text-white font-medium text-sm">Log Response Body</h3>
+                                <p class="text-gray-400 text-xs">Include response payloads in logs</p>
+                            </div>
+                            <label class="relative inline-flex items-center cursor-pointer">
+                                <input type="checkbox" id="log-response-body-toggle" class="sr-only peer">
+                                <div class="w-9 h-5 bg-gray-600 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-blue-600"></div>
+                            </label>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Rate Limiting Settings -->
+            <div class="bg-gray-800 rounded-lg p-6 mb-6">
+                <h2 class="text-xl font-semibold text-white mb-4 flex items-center gap-2">
+                    <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    Rate Limiting
+                </h2>
+
+                <div class="space-y-4">
+                    <!-- Enable Rate Limiting -->
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <h3 class="text-white font-medium">Enable Rate Limiting</h3>
+                            <p class="text-gray-400 text-sm">Limit request rate per client</p>
+                        </div>
+                        <label class="relative inline-flex items-center cursor-pointer">
+                            <input type="checkbox" id="enable-rate-limiting-toggle" class="sr-only peer">
+                            <div class="w-11 h-6 bg-gray-600 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                        </label>
+                    </div>
+
+                    <!-- Requests Per Minute -->
+                    <div>
+                        <h3 class="text-white font-medium mb-2">Requests Per Minute</h3>
+                        <p class="text-gray-400 text-sm mb-3">Maximum requests allowed per minute per client</p>
+                        <input type="number" id="requests-per-minute-input" class="w-full bg-gray-700 text-white rounded-md p-2 border border-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500" value="60" min="1" max="1000">
+                    </div>
+
+                    <!-- Rate Limiting Strategy -->
+                    <div>
+                        <h3 class="text-white font-medium mb-2">Rate Limiting Strategy</h3>
+                        <p class="text-gray-400 text-sm mb-3">Algorithm for rate limiting</p>
+                        <select id="rate-limiting-strategy-select" class="w-full bg-gray-700 text-white rounded-md p-2 border border-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                            <option value="fixed_window" selected>Fixed Window</option>
+                            <option value="sliding_window">Sliding Window</option>
+                            <option value="token_bucket">Token Bucket</option>
+                        </select>
+                    </div>
+
+                    <!-- Burst Allowance -->
+                    <div>
+                        <h3 class="text-white font-medium mb-2">Burst Allowance</h3>
+                        <p class="text-gray-400 text-sm mb-3">Extra requests allowed in short bursts</p>
+                        <input type="number" id="burst-allowance-input" class="w-full bg-gray-700 text-white rounded-md p-2 border border-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500" value="10" min="0" max="100">
+                    </div>
+                </div>
+            </div>
+
+            <!-- Security Settings -->
+            <div class="bg-gray-800 rounded-lg p-6 mb-6">
+                <h2 class="text-xl font-semibold text-white mb-4 flex items-center gap-2">
+                    <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                    </svg>
+                    Security
+                </h2>
+
+                <div class="space-y-4">
+                    <!-- Enable CORS -->
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <h3 class="text-white font-medium">Enable CORS</h3>
+                            <p class="text-gray-400 text-sm">Cross-Origin Resource Sharing support</p>
+                        </div>
+                        <label class="relative inline-flex items-center cursor-pointer">
+                            <input type="checkbox" id="enable-cors-toggle" class="sr-only peer" checked>
+                            <div class="w-11 h-6 bg-gray-600 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                        </label>
+                    </div>
+
+                    <!-- CORS Origins -->
+                    <div>
+                        <h3 class="text-white font-medium mb-2">CORS Origins</h3>
+                        <p class="text-gray-400 text-sm mb-3">Allowed origins (comma-separated, * for all)</p>
+                        <input type="text" id="cors-origins-input" class="w-full bg-gray-700 text-white rounded-md p-2 border border-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500" value="*" placeholder="* or https://example.com,https://api.example.com">
+                    </div>
+
+                    <!-- Max Request Size -->
+                    <div>
+                        <h3 class="text-white font-medium mb-2">Max Request Size (bytes)</h3>
+                        <p class="text-gray-400 text-sm mb-3">Maximum allowed request body size</p>
+                        <input type="number" id="max-request-size-input" class="w-full bg-gray-700 text-white rounded-md p-2 border border-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500" value="10485760" min="1024" max="104857600">
+                    </div>
+
+                    <!-- Blocked User Agents -->
+                    <div>
+                        <h3 class="text-white font-medium mb-2">Blocked User Agents</h3>
+                        <p class="text-gray-400 text-sm mb-3">User agents to block (comma-separated)</p>
+                        <input type="text" id="blocked-user-agents-input" class="w-full bg-gray-700 text-white rounded-md p-2 border border-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500" value="" placeholder="curl,wget,bot">
+                    </div>
+                </div>
+            </div>
+
+            <!-- Advanced Proxy Settings -->
+            <div class="bg-gray-800 rounded-lg p-6 mb-6">
+                <h2 class="text-xl font-semibold text-white mb-4 flex items-center gap-2">
+                    <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                    </svg>
+                    Advanced Proxy Settings
+                </h2>
+
+                <div class="space-y-4">
+                    <!-- Failover Strategy -->
+                    <div>
+                        <h3 class="text-white font-medium mb-2">Failover Strategy</h3>
+                        <p class="text-gray-400 text-sm mb-3">Method for selecting backup API keys</p>
+                        <select id="failover-strategy-select" class="w-full bg-gray-700 text-white rounded-md p-2 border border-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                            <option value="round_robin" selected>Round Robin</option>
+                            <option value="random">Random</option>
+                            <option value="least_used">Least Used</option>
+                            <option value="priority">Priority Based</option>
+                        </select>
+                    </div>
+
+                    <!-- Buffer Size -->
+                    <div>
+                        <h3 class="text-white font-medium mb-2">Buffer Size (bytes)</h3>
+                        <p class="text-gray-400 text-sm mb-3">Size of streaming buffer chunks</p>
+                        <input type="number" id="buffer-size-input" class="w-full bg-gray-700 text-white rounded-md p-2 border border-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500" value="8192" min="1024" max="65536" step="1024">
+                    </div>
+
+                    <!-- Max Concurrent Requests -->
+                    <div>
+                        <h3 class="text-white font-medium mb-2">Max Concurrent Requests</h3>
+                        <p class="text-gray-400 text-sm mb-3">Maximum simultaneous requests allowed</p>
+                        <input type="number" id="max-concurrent-requests-input" class="w-full bg-gray-700 text-white rounded-md p-2 border border-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500" value="100" min="1" max="1000">
+                    </div>
+
+                    <!-- Request ID Injection -->
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <h3 class="text-white font-medium">Enable Request ID Injection</h3>
+                            <p class="text-gray-400 text-sm">Add unique request IDs for tracing</p>
+                        </div>
+                        <label class="relative inline-flex items-center cursor-pointer">
+                            <input type="checkbox" id="enable-request-id-injection-toggle" class="sr-only peer" checked>
+                            <div class="w-11 h-6 bg-gray-600 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                        </label>
+                    </div>
+                </div>
+            </div>
+
             <!-- Actions -->
             <div class="flex gap-4">
                 <button id="save-settings-btn" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-6 rounded">
@@ -143,11 +372,48 @@
     <script>
         // Default settings
         const defaultSettings = {
+            // Performance Settings
             streaming_enabled: true,
             connection_pooling_enabled: true,
             model_cache_enabled: true,
             max_retries: 7,
-            request_timeout: 30
+            request_timeout: 30,
+
+            // Logging & Monitoring Settings
+            enable_request_logging: true,
+            log_level: 'INFO',
+            enable_metrics_collection: true,
+            enable_performance_logging: true,
+            log_request_body: false,
+            log_response_body: false,
+
+            // Rate Limiting Settings
+            enable_rate_limiting: false,
+            requests_per_minute: 60,
+            rate_limiting_strategy: 'sliding_window',
+            burst_allowance: 10,
+
+            // Security Settings
+            enable_cors: true,
+            cors_origins: '*',
+            enable_request_validation: false,
+            max_request_size: 10485760,
+            blocked_user_agents: '',
+
+            // Advanced Proxy Settings
+            enable_health_checks: true,
+            health_check_interval: 300,
+            failover_strategy: 'round_robin',
+            enable_circuit_breaker: false,
+            circuit_breaker_threshold: 5,
+            enable_request_id_injection: true,
+
+            // Performance Fine-tuning
+            buffer_size: 8192,
+            max_concurrent_requests: 100,
+            keepalive_timeout: 30,
+            enable_graceful_shutdown: true,
+            cache_max_age: 300
         };
 
         // Load settings from localStorage and server
@@ -173,21 +439,75 @@
 
         // Initialize UI with current settings
         function initializeUI() {
+            // Performance Settings
             document.getElementById('streaming-toggle').checked = currentSettings.streaming_enabled;
             document.getElementById('connection-pooling-toggle').checked = currentSettings.connection_pooling_enabled;
             document.getElementById('model-cache-toggle').checked = currentSettings.model_cache_enabled;
             document.getElementById('max-retries-select').value = currentSettings.max_retries;
             document.getElementById('request-timeout-input').value = currentSettings.request_timeout;
+
+            // Logging & Monitoring Settings
+            document.getElementById('enable-request-logging-toggle').checked = currentSettings.enable_request_logging;
+            document.getElementById('log-level-select').value = currentSettings.log_level;
+            document.getElementById('enable-metrics-collection-toggle').checked = currentSettings.enable_metrics_collection;
+            document.getElementById('enable-performance-logging-toggle').checked = currentSettings.enable_performance_logging;
+            document.getElementById('log-request-body-toggle').checked = currentSettings.log_request_body;
+            document.getElementById('log-response-body-toggle').checked = currentSettings.log_response_body;
+
+            // Rate Limiting Settings
+            document.getElementById('enable-rate-limiting-toggle').checked = currentSettings.enable_rate_limiting;
+            document.getElementById('requests-per-minute-input').value = currentSettings.requests_per_minute;
+            document.getElementById('rate-limiting-strategy-select').value = currentSettings.rate_limiting_strategy;
+            document.getElementById('burst-allowance-input').value = currentSettings.burst_allowance;
+
+            // Security Settings
+            document.getElementById('enable-cors-toggle').checked = currentSettings.enable_cors;
+            document.getElementById('cors-origins-input').value = currentSettings.cors_origins;
+            document.getElementById('max-request-size-input').value = currentSettings.max_request_size;
+            document.getElementById('blocked-user-agents-input').value = currentSettings.blocked_user_agents;
+
+            // Advanced Proxy Settings
+            document.getElementById('failover-strategy-select').value = currentSettings.failover_strategy;
+            document.getElementById('buffer-size-input').value = currentSettings.buffer_size;
+            document.getElementById('max-concurrent-requests-input').value = currentSettings.max_concurrent_requests;
+            document.getElementById('enable-request-id-injection-toggle').checked = currentSettings.enable_request_id_injection;
         }
 
         // Save settings to localStorage and API
         async function saveSettings() {
             currentSettings = {
+                // Performance Settings
                 streaming_enabled: document.getElementById('streaming-toggle').checked,
                 connection_pooling_enabled: document.getElementById('connection-pooling-toggle').checked,
                 model_cache_enabled: document.getElementById('model-cache-toggle').checked,
                 max_retries: parseInt(document.getElementById('max-retries-select').value),
-                request_timeout: parseInt(document.getElementById('request-timeout-input').value)
+                request_timeout: parseInt(document.getElementById('request-timeout-input').value),
+
+                // Logging & Monitoring Settings
+                enable_request_logging: document.getElementById('enable-request-logging-toggle').checked,
+                log_level: document.getElementById('log-level-select').value,
+                enable_metrics_collection: document.getElementById('enable-metrics-collection-toggle').checked,
+                enable_performance_logging: document.getElementById('enable-performance-logging-toggle').checked,
+                log_request_body: document.getElementById('log-request-body-toggle').checked,
+                log_response_body: document.getElementById('log-response-body-toggle').checked,
+
+                // Rate Limiting Settings
+                enable_rate_limiting: document.getElementById('enable-rate-limiting-toggle').checked,
+                requests_per_minute: parseInt(document.getElementById('requests-per-minute-input').value),
+                rate_limiting_strategy: document.getElementById('rate-limiting-strategy-select').value,
+                burst_allowance: parseInt(document.getElementById('burst-allowance-input').value),
+
+                // Security Settings
+                enable_cors: document.getElementById('enable-cors-toggle').checked,
+                cors_origins: document.getElementById('cors-origins-input').value,
+                max_request_size: parseInt(document.getElementById('max-request-size-input').value),
+                blocked_user_agents: document.getElementById('blocked-user-agents-input').value,
+
+                // Advanced Proxy Settings
+                failover_strategy: document.getElementById('failover-strategy-select').value,
+                buffer_size: parseInt(document.getElementById('buffer-size-input').value),
+                max_concurrent_requests: parseInt(document.getElementById('max-concurrent-requests-input').value),
+                enable_request_id_injection: document.getElementById('enable-request-id-injection-toggle').checked
             };
 
             // Save to localStorage

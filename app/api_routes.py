@@ -506,11 +506,48 @@ def update_settings():
 
         # Validate settings
         valid_settings = {
+            # Performance Settings
             'streaming_enabled': bool,
             'connection_pooling_enabled': bool,
             'model_cache_enabled': bool,
             'max_retries': int,
-            'request_timeout': int
+            'request_timeout': int,
+
+            # Logging & Monitoring Settings
+            'enable_request_logging': bool,
+            'log_level': str,
+            'enable_metrics_collection': bool,
+            'enable_performance_logging': bool,
+            'log_request_body': bool,
+            'log_response_body': bool,
+
+            # Rate Limiting Settings
+            'enable_rate_limiting': bool,
+            'requests_per_minute': int,
+            'rate_limiting_strategy': str,
+            'burst_allowance': int,
+
+            # Security Settings
+            'enable_cors': bool,
+            'cors_origins': str,
+            'enable_request_validation': bool,
+            'max_request_size': int,
+            'blocked_user_agents': str,
+
+            # Advanced Proxy Settings
+            'enable_health_checks': bool,
+            'health_check_interval': int,
+            'failover_strategy': str,
+            'enable_circuit_breaker': bool,
+            'circuit_breaker_threshold': int,
+            'enable_request_id_injection': bool,
+
+            # Performance Fine-tuning
+            'buffer_size': int,
+            'max_concurrent_requests': int,
+            'keepalive_timeout': int,
+            'enable_graceful_shutdown': bool,
+            'cache_max_age': int
         }
 
         validated_settings = {}
@@ -528,8 +565,34 @@ def update_settings():
                     return jsonify({"success": False, "message": "max_retries must be between 1 and 20"}), 400
                 elif key == 'request_timeout' and not (5 <= value <= 300):
                     return jsonify({"success": False, "message": "request_timeout must be between 5 and 300 seconds"}), 400
+                elif key == 'requests_per_minute' and not (1 <= value <= 1000):
+                    return jsonify({"success": False, "message": "requests_per_minute must be between 1 and 1000"}), 400
+                elif key == 'burst_allowance' and not (0 <= value <= 100):
+                    return jsonify({"success": False, "message": "burst_allowance must be between 0 and 100"}), 400
+                elif key == 'max_request_size' and not (1024 <= value <= 104857600):
+                    return jsonify({"success": False, "message": "max_request_size must be between 1KB and 100MB"}), 400
+                elif key == 'health_check_interval' and not (60 <= value <= 3600):
+                    return jsonify({"success": False, "message": "health_check_interval must be between 60 and 3600 seconds"}), 400
+                elif key == 'circuit_breaker_threshold' and not (1 <= value <= 50):
+                    return jsonify({"success": False, "message": "circuit_breaker_threshold must be between 1 and 50"}), 400
+                elif key == 'buffer_size' and not (1024 <= value <= 65536):
+                    return jsonify({"success": False, "message": "buffer_size must be between 1KB and 64KB"}), 400
+                elif key == 'max_concurrent_requests' and not (1 <= value <= 1000):
+                    return jsonify({"success": False, "message": "max_concurrent_requests must be between 1 and 1000"}), 400
+                elif key == 'keepalive_timeout' and not (5 <= value <= 300):
+                    return jsonify({"success": False, "message": "keepalive_timeout must be between 5 and 300 seconds"}), 400
+                elif key == 'cache_max_age' and not (0 <= value <= 3600):
+                    return jsonify({"success": False, "message": "cache_max_age must be between 0 and 3600 seconds"}), 400
 
-                validated_settings[key] = value
+            # Validation for string values
+            if key == 'log_level' and value not in ['DEBUG', 'INFO', 'WARNING', 'ERROR']:
+                return jsonify({"success": False, "message": "log_level must be one of: DEBUG, INFO, WARNING, ERROR"}), 400
+            elif key == 'rate_limiting_strategy' and value not in ['fixed_window', 'sliding_window', 'token_bucket']:
+                return jsonify({"success": False, "message": "rate_limiting_strategy must be one of: fixed_window, sliding_window, token_bucket"}), 400
+            elif key == 'failover_strategy' and value not in ['round_robin', 'random', 'least_used', 'priority']:
+                return jsonify({"success": False, "message": "failover_strategy must be one of: round_robin, random, least_used, priority"}), 400
+
+            validated_settings[key] = value
 
         key_manager.update_settings(validated_settings)
         return jsonify({"success": True, "message": "Settings updated successfully"})
