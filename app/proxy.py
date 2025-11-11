@@ -29,14 +29,30 @@ session.mount("http://", adapter)
 session.mount("https://", adapter)
 
 # Performance optimization: Cache for model discovery responses
-@lru_cache(maxsize=128, ttl=300)  # 5 minutes TTL
+_model_cache = {}
+_cache_timeout = 300  # 5 minutes TTL
+
 def get_cached_models_list(api_key, path):
     """Cache model list responses for 5 minutes to reduce API calls"""
+    cache_key = f"{api_key}:{path}"
+    current_time = time.time()
+
+    # Check if we have a cached response that's still valid
+    if cache_key in _model_cache:
+        cached_data, timestamp = _model_cache[cache_key]
+        if current_time - timestamp < _cache_timeout:
+            return cached_data
+
+    # If not cached or expired, fetch new data
     try:
         headers = {'x-goog-api-key': api_key, 'Content-Type': 'application/json'}
         url = f"https://generativelanguage.googleapis.com/{path}"
         resp = session.get(url, headers=headers, timeout=10)
-        return resp.json() if resp.ok else None
+        if resp.ok:
+            data = resp.json()
+            _model_cache[cache_key] = (data, current_time)
+            return data
+        return None
     except Exception:
         return None
 
@@ -158,21 +174,25 @@ def gemini_list_models():
       503:
         description: No healthy API keys available
     """
-    # Performance optimization: Use cached response for model lists
-    key_info = key_manager.get_next_key()
-    if not key_info:
-        return jsonify({"error": "No healthy API keys available."}), 503
+    # Performance optimization: Use cached response for model lists if enabled
+    model_cache_enabled = key_manager.get_setting('model_cache_enabled', 'true').lower() == 'true'
 
-    api_key = key_info['key_value']
-    path = 'v1beta/models'
+    if model_cache_enabled:
+        key_info = key_manager.get_next_key()
+        if not key_info:
+            return jsonify({"error": "No healthy API keys available."}), 503
 
-    # Try to get from cache first
-    cached_response = get_cached_models_list(api_key, path)
-    if cached_response:
-        add_log_entry(f"Cache HIT for models list", "text-green-400")
-        return jsonify(cached_response)
+        api_key = key_info['key_value']
+        path = 'v1beta/models'
 
-    add_log_entry(f"Cache MISS for models list", "text-yellow-400")
+        # Try to get from cache first
+        cached_response = get_cached_models_list(api_key, path)
+        if cached_response:
+            add_log_entry(f"Cache HIT for models list", "text-green-400")
+            return jsonify(cached_response)
+
+        add_log_entry(f"Cache MISS for models list", "text-yellow-400")
+
     return proxy(path)
 
 @proxy_bp.route('/v1beta/models/<model_name>:streamGenerateContent', methods=['POST'])
@@ -363,8 +383,12 @@ def proxy(path):
     request_data = request.get_data()
     request_params = request.args
     
-    # Retry logic with automatic failover
-    max_retries = 7
+    # Retry logic with automatic failover - get from settings
+    max_retries = key_manager.get_setting('max_retries', '7')
+    try:
+        max_retries = int(max_retries)
+    except (ValueError, TypeError):
+        max_retries = 7
     tried_key_ids = []
     
     for attempt in range(max_retries + 1):
@@ -404,52 +428,82 @@ def proxy(path):
             headers['Content-Type'] = 'application/json'
 
         try:
-            # Performance optimization: Use session with connection pooling and enable streaming
-            resp = session.request(method=request.method, url=target_url, headers=headers, data=request_data, params=request_params, stream=True)
+            # Get settings for this request
+            streaming_enabled = key_manager.get_setting('streaming_enabled', 'true').lower() == 'true'
+            connection_pooling_enabled = key_manager.get_setting('connection_pooling_enabled', 'true').lower() == 'true'
+
+            # Choose request method based on settings
+            if connection_pooling_enabled:
+                # Use session with connection pooling
+                resp = session.request(method=request.method, url=target_url, headers=headers, data=request_data, params=request_params, stream=streaming_enabled)
+            else:
+                # Use direct requests without connection pooling
+                resp = requests.request(method=request.method, url=target_url, headers=headers, data=request_data, params=request_params, stream=streaming_enabled)
+
             latency_ms = int((time.time() - start_time) * 1000)
 
             tokens_in, tokens_out = 0, 0
             if resp.ok:
                 add_log_entry(f"SUCCESS ({resp.status_code}) from '{key_info['name']}' in {latency_ms}ms.", "text-green-400")
 
-                # Performance optimization: Stream response for better memory usage
-                def generate():
-                    nonlocal tokens_in, tokens_out
-                    json_start_buffer = b""
-                    buffer_size = 0
+                if streaming_enabled:
+                    # Performance optimization: Stream response for better memory usage
+                    def generate():
+                        nonlocal tokens_in, tokens_out
+                        json_start_buffer = b""
+                        buffer_size = 0
 
-                    for chunk in resp.iter_content(chunk_size=8192):
-                        if chunk:
-                            # Yield chunk immediately for streaming
-                            yield chunk
+                        for chunk in resp.iter_content(chunk_size=8192):
+                            if chunk:
+                                # Yield chunk immediately for streaming
+                                yield chunk
 
-                            # Performance optimization: Only buffer first 2KB for token extraction
-                            if buffer_size < 2048:
-                                remaining = 2048 - buffer_size
-                                json_start_buffer += chunk[:remaining]
-                                buffer_size += len(chunk)
+                                # Performance optimization: Only buffer first 2KB for token extraction
+                                if buffer_size < 2048:
+                                    remaining = 2048 - buffer_size
+                                    json_start_buffer += chunk[:remaining]
+                                    buffer_size += len(chunk)
 
-                    # Parse token usage from buffered content
+                        # Parse token usage from buffered content
+                        try:
+                            if json_start_buffer:
+                                data = json.loads(json_start_buffer.decode('utf-8', errors='ignore'))
+                                # Google's OpenAI-compatible endpoint uses 'usage' like OpenAI
+                                if 'usage' in data:
+                                    usage = data.get('usage', {})
+                                    tokens_in = usage.get('prompt_tokens', 0)
+                                    tokens_out = usage.get('completion_tokens', 0)
+                                # Native Gemini endpoint uses 'usageMetadata'
+                                elif 'usageMetadata' in data:
+                                    usage = data.get('usageMetadata', {})
+                                    tokens_in = usage.get('promptTokenCount', 0)
+                                    tokens_out = usage.get('candidatesTokenCount', 0)
+                        except (json.JSONDecodeError, KeyError, UnicodeDecodeError):
+                            pass
+
+                    # Create and return the streaming response
+                    response = Response(generate(), status=resp.status_code, content_type=resp.headers.get('Content-Type'))
+                else:
+                    # Traditional non-streaming response
+                    response_content = resp.content
                     try:
-                        if json_start_buffer:
-                            data = json.loads(json_start_buffer.decode('utf-8', errors='ignore'))
-                            # Google's OpenAI-compatible endpoint uses 'usage' like OpenAI
-                            if 'usage' in data:
-                                usage = data.get('usage', {})
-                                tokens_in = usage.get('prompt_tokens', 0)
-                                tokens_out = usage.get('completion_tokens', 0)
-                            # Native Gemini endpoint uses 'usageMetadata'
-                            elif 'usageMetadata' in data:
-                                usage = data.get('usageMetadata', {})
-                                tokens_in = usage.get('promptTokenCount', 0)
-                                tokens_out = usage.get('candidatesTokenCount', 0)
-                    except (json.JSONDecodeError, KeyError, UnicodeDecodeError):
+                        data = json.loads(response_content)
+                        # Google's OpenAI-compatible endpoint uses 'usage' like OpenAI
+                        if 'usage' in data:
+                            usage = data.get('usage', {})
+                            tokens_in = usage.get('prompt_tokens', 0)
+                            tokens_out = usage.get('completion_tokens', 0)
+                        # Native Gemini endpoint uses 'usageMetadata'
+                        elif 'usageMetadata' in data:
+                            usage = data.get('usageMetadata', {})
+                            tokens_in = usage.get('promptTokenCount', 0)
+                            tokens_out = usage.get('candidatesTokenCount', 0)
+                    except (json.JSONDecodeError, KeyError):
                         pass
 
-                # Create and return the streaming response
-                response = Response(generate(), status=resp.status_code, content_type=resp.headers.get('Content-Type'))
+                    response = Response(response_content, status=resp.status_code, content_type=resp.headers.get('Content-Type'))
 
-                # Update stats after creating response (token counts will be filled during streaming)
+                # Update stats after creating response
                 key_manager.update_key_stats(key_id, True, model_name,
                     error_code=None, tokens_in=tokens_in, tokens_out=tokens_out, latency_ms=latency_ms)
 
@@ -467,13 +521,17 @@ def proxy(path):
                     continue
                 
                 # For all other errors or if max retries reached, return the error
-                # Performance optimization: Stream error responses too
-                def error_generate():
-                    for chunk in resp.iter_content(chunk_size=8192):
-                        if chunk:
-                            yield chunk
+                if streaming_enabled:
+                    # Performance optimization: Stream error responses too
+                    def error_generate():
+                        for chunk in resp.iter_content(chunk_size=8192):
+                            if chunk:
+                                yield chunk
 
-                return Response(error_generate(), status=resp.status_code, content_type=resp.headers.get('Content-Type'))
+                    return Response(error_generate(), status=resp.status_code, content_type=resp.headers.get('Content-Type'))
+                else:
+                    # Traditional non-streaming error response
+                    return Response(resp.content, status=resp.status_code, content_type=resp.headers.get('Content-Type'))
                 
         except requests.exceptions.RequestException as e:
             latency_ms = int((time.time() - start_time) * 1000)

@@ -88,6 +88,30 @@ class KeyManager:
             if 'model_usage' not in daily_stats_columns:
                 cursor.execute("ALTER TABLE daily_stats ADD COLUMN model_usage TEXT NOT NULL DEFAULT '{}'")
 
+            # --- Create 'settings' table for configuration ---
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS settings (
+                    key TEXT PRIMARY KEY,
+                    value TEXT NOT NULL,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                )
+            """)
+
+            # Insert default settings if they don't exist
+            default_settings = {
+                'streaming_enabled': 'true',
+                'connection_pooling_enabled': 'true',
+                'model_cache_enabled': 'true',
+                'max_retries': '7',
+                'request_timeout': '30'
+            }
+
+            for key, value in default_settings.items():
+                cursor.execute("""
+                    INSERT OR IGNORE INTO settings (key, value) VALUES (?, ?)
+                """, (key, value))
+
             self.conn.commit()
 
     def _migrate_from_env(self):
@@ -363,4 +387,57 @@ class KeyManager:
 
             update_params.extend([key_id, today_str])
             cursor.execute(f"UPDATE daily_stats SET {update_fields} WHERE key_id = ? AND date = ?", tuple(update_params))
+            self.conn.commit()
+
+    # Settings management methods
+    def get_setting(self, key, default=None):
+        """Get a setting value from the database."""
+        with self.lock:
+            cursor = self.conn.cursor()
+            cursor.execute("SELECT value FROM settings WHERE key = ?", (key,))
+            row = cursor.fetchone()
+            return row['value'] if row else default
+
+    def set_setting(self, key, value):
+        """Set a setting value in the database."""
+        with self.lock:
+            cursor = self.conn.cursor()
+            cursor.execute("""
+                INSERT INTO settings (key, value, updated_at)
+                VALUES (?, ?, CURRENT_TIMESTAMP)
+                ON CONFLICT(key) DO UPDATE SET
+                value = excluded.value,
+                updated_at = CURRENT_TIMESTAMP
+            """, (key, str(value)))
+            self.conn.commit()
+
+    def get_all_settings(self):
+        """Get all settings as a dictionary."""
+        with self.lock:
+            cursor = self.conn.cursor()
+            cursor.execute("SELECT key, value FROM settings")
+            settings = {}
+            for row in cursor.fetchall():
+                # Convert string values to appropriate types
+                value = row['value']
+                if value.lower() in ('true', 'false'):
+                    settings[row['key']] = value.lower() == 'true'
+                elif value.isdigit():
+                    settings[row['key']] = int(value)
+                else:
+                    settings[row['key']] = value
+            return settings
+
+    def update_settings(self, settings_dict):
+        """Update multiple settings at once."""
+        with self.lock:
+            cursor = self.conn.cursor()
+            for key, value in settings_dict.items():
+                cursor.execute("""
+                    INSERT INTO settings (key, value, updated_at)
+                    VALUES (?, ?, CURRENT_TIMESTAMP)
+                    ON CONFLICT(key) DO UPDATE SET
+                    value = excluded.value,
+                    updated_at = CURRENT_TIMESTAMP
+                """, (key, str(value)))
             self.conn.commit()

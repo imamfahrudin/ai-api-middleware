@@ -78,6 +78,12 @@ app.register_blueprint(proxy_bp)
 def dashboard():
     return render_template('dashboard.html')
 
+# --- Settings Route ---
+@app.route('/middleware/settings')
+@login_required
+def settings():
+    return render_template('settings.html')
+
 # --- Main Execution ---
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))

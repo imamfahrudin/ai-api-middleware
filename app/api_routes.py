@@ -420,3 +420,155 @@ def import_keys_route():
     data = request.get_json()
     imported, skipped, message = key_manager.bulk_import_keys(data)
     return jsonify({"success": True, "message": f"{message} Imported {imported}, skipped {skipped}."})
+
+@api_bp.route('/middleware/api/settings', methods=['GET'])
+@login_required
+def get_settings():
+    """
+    Get all current settings
+    ---
+    tags:
+      - Settings
+    security:
+      - SessionAuth: []
+    responses:
+      200:
+        description: Current settings values
+        schema:
+          type: object
+          properties:
+            streaming_enabled:
+              type: boolean
+            connection_pooling_enabled:
+              type: boolean
+            model_cache_enabled:
+              type: boolean
+            max_retries:
+              type: integer
+            request_timeout:
+              type: integer
+      302:
+        description: Redirect to login if not authenticated
+    """
+    settings = key_manager.get_all_settings()
+    return jsonify(settings)
+
+@api_bp.route('/middleware/api/settings', methods=['POST'])
+@login_required
+def update_settings():
+    """
+    Update settings
+    ---
+    tags:
+      - Settings
+    security:
+      - SessionAuth: []
+    parameters:
+      - name: body
+        in: body
+        required: true
+        schema:
+          type: object
+          properties:
+            streaming_enabled:
+              type: boolean
+            connection_pooling_enabled:
+              type: boolean
+            model_cache_enabled:
+              type: boolean
+            max_retries:
+              type: integer
+              minimum: 1
+              maximum: 20
+            request_timeout:
+              type: integer
+              minimum: 5
+              maximum: 300
+    responses:
+      200:
+        description: Settings updated successfully
+        schema:
+          type: object
+          properties:
+            success:
+              type: boolean
+            message:
+              type: string
+      400:
+        description: Invalid settings provided
+      302:
+        description: Redirect to login if not authenticated
+    """
+    try:
+        data = request.get_json()
+        if not data:
+            return jsonify({"success": False, "message": "No settings data provided"}), 400
+
+        # Validate settings
+        valid_settings = {
+            'streaming_enabled': bool,
+            'connection_pooling_enabled': bool,
+            'model_cache_enabled': bool,
+            'max_retries': int,
+            'request_timeout': int
+        }
+
+        validated_settings = {}
+        for key, value in data.items():
+            if key in valid_settings:
+                expected_type = valid_settings[key]
+                if not isinstance(value, expected_type):
+                    try:
+                        value = expected_type(value)
+                    except (ValueError, TypeError):
+                        return jsonify({"success": False, "message": f"Invalid value for {key}: expected {expected_type.__name__}"}), 400
+
+                # Additional validation for numeric values
+                if key == 'max_retries' and not (1 <= value <= 20):
+                    return jsonify({"success": False, "message": "max_retries must be between 1 and 20"}), 400
+                elif key == 'request_timeout' and not (5 <= value <= 300):
+                    return jsonify({"success": False, "message": "request_timeout must be between 5 and 300 seconds"}), 400
+
+                validated_settings[key] = value
+
+        key_manager.update_settings(validated_settings)
+        return jsonify({"success": True, "message": "Settings updated successfully"})
+
+    except Exception as e:
+        return jsonify({"success": False, "message": f"Error updating settings: {str(e)}"}), 500
+
+@api_bp.route('/middleware/api/settings/<setting_key>', methods=['GET'])
+@login_required
+def get_setting(setting_key):
+    """
+    Get a specific setting value
+    ---
+    tags:
+      - Settings
+    security:
+      - SessionAuth: []
+    parameters:
+      - name: setting_key
+        in: path
+        type: string
+        required: true
+        description: The setting key to retrieve
+    responses:
+      200:
+        description: Setting value
+        schema:
+          type: object
+          properties:
+            key:
+              type: string
+            value:
+              type: string
+      404:
+        description: Setting not found
+      302:
+        description: Redirect to login if not authenticated
+    """
+    value = key_manager.get_setting(setting_key)
+    if value is None:
+        return jsonify({"error": "Setting not found"}), 404
+    return jsonify({"key": setting_key, "value": value})
