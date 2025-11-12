@@ -22,17 +22,19 @@ A powerful middleware solution for managing and proxying AI API requests with bu
 ## ✨ Features
 
 - **🔐 Secure Authentication**: Built-in login system with session management to protect your API endpoints
-- **🔑 API Key Management**: Create, update, delete, and monitor multiple API keys from a centralized dashboard
-- **📊 Real-time Monitoring**: Track API usage with live logs and detailed KPI metrics (requests, success/failure rates)
-- **🔄 Smart Proxy**: Seamlessly proxy requests to various AI services (Gemini, OpenAI, and more)
-- **📈 Analytics Dashboard**: Beautiful web interface to visualize API usage and performance metrics
-- **⚙️ Performance Settings**: Real-time performance tuning without application restart
-- **📝 Comprehensive Logging**: Track all API requests with timestamps, status codes, and response times
+- **🔑 Advanced API Key Management**: Create, update, delete, and monitor multiple API keys with bulk operations and import/export functionality
+- **📊 Real-time Monitoring**: Track API usage with live logs and detailed KPI metrics (requests, success/failure rates, latency, token usage)
+- **🔄 Smart Proxy**: Seamlessly proxy requests to various AI services (Gemini, OpenAI, and more) with intelligent failover
+- **📈 Analytics Dashboard**: Beautiful web interface to visualize API usage and performance metrics with detailed charts
+- **⚙️ Performance Settings**: Real-time performance tuning without application restart including timeout configurations
+- **📝 Comprehensive Logging**: Track all API requests with timestamps, status codes, response times, and error details
 - **🚀 High Performance**: Connection pooling, response caching, and streaming support for optimal speed
-- **🔄 Retry Logic**: Configurable retry attempts (up to 7) for better reliability under load
+- **🔄 Advanced Retry Logic**: Configurable retry attempts (up to 7) with exponential backoff and streaming retry
 - **🐳 Docker Support**: Easy deployment with Docker and Docker Compose
 - **📚 Auto-generated API Docs**: Interactive Swagger/OpenAPI documentation for all endpoints
 - **⚡ Lightweight**: Built with Flask for fast performance and minimal resource usage
+- **📦 Bulk Operations**: Import/export API keys in bulk with status management and validation
+- **🔧 Enhanced Timeout Configuration**: Granular control over connection, read, and streaming timeouts
 
 ## 📦 Prerequisites
 
@@ -117,11 +119,14 @@ The application will be available at `http://localhost:5000`
 ### Managing API Keys
 
 From the dashboard, you can:
-- **Add new API keys**: Click "Add New Key" and provide a name and key value
-- **View KPIs**: Monitor total requests, success rates, and failure rates for each key
-- **Edit keys**: Update key names, values, or status
+- **Add new API keys**: Click "Add New Key" and provide a name, key value, and optional notes
+- **View KPIs**: Monitor total requests, success rates, failure rates, latency, and token usage for each key
+- **Edit keys**: Update key names, values, status, or notes
 - **Delete keys**: Remove keys that are no longer needed
 - **View live logs**: See real-time API request logs with detailed information
+- **Bulk operations**: Select multiple keys to update status or delete them in bulk
+- **Import/Export keys**: Backup your keys or import them from another instance
+- **Advanced metrics**: View detailed analytics with charts for requests, models, errors, and latency
 
 ### Performance Settings
 
@@ -129,8 +134,9 @@ Navigate to `http://localhost:5000/middleware/settings` to configure:
 - **Connection Pool Size**: Adjust base and maximum connections (default: 20 base, 100 max)
 - **Retry Attempts**: Configure retry logic for failed requests (default: 7 attempts)
 - **Cache Timeout**: Set response caching duration for model discovery (default: 5 minutes)
-- **Request Timeout**: Adjust timeout values for API requests
+- **Timeout Configuration**: Fine-tune connection, read, and streaming timeouts
 - **Streaming**: Enable/disable response streaming for real-time generation
+- **Max Stream Retries**: Configure retry attempts for streaming chunks (default: 2)
 
 All settings are applied in real-time without requiring application restart.
 
@@ -151,29 +157,47 @@ curl -X POST http://localhost:5000/v1/models/gemini-pro:generateContent \
   }'
 ```
 
-#### Example 2: Streaming Responses
+#### Example 2: Streaming Responses with Enhanced Retry
 
 ```python
 import requests
 
-# Enable streaming for real-time responses
+# Enable streaming for real-time responses with automatic retry
 response = requests.post(
-    "http://localhost:5000/v1/models/gemini-pro:generateContent",
+    "http://localhost:5000/v1/models/gemini-pro:streamGenerateContent",
     json={
-        "contents": [{
-            "parts": [{"text": "Write a story about AI"}]
-        }]
+      "contents": [{
+        "parts": [{"text": "Write a story about AI"}]
+      }]
     },
     stream=True
 )
 
-# Process the response as it streams in
+# Process the response as it streams in with automatic retry on failures
 for line in response.iter_lines():
     if line:
         print(line.decode('utf-8'))
 ```
 
-#### Example 3: Using with Your Application
+#### Example 3: Counting Tokens
+
+```python
+import requests
+
+# Count tokens before making a request
+response = requests.post(
+    "http://localhost:5000/v1/models/gemini-pro:countTokens",
+    json={
+      "contents": [{
+        "parts": [{"text": "Explain quantum computing"}]
+      }]
+    }
+)
+
+print(response.json())
+```
+
+#### Example 4: Using with Your Application
 
 ```python
 import requests
@@ -182,20 +206,107 @@ import requests
 response = requests.post(
     "http://localhost:5000/v1/models/gemini-pro:generateContent",
     json={
-        "contents": [{
-            "parts": [{"text": "Explain quantum computing"}]
-        }]
+      "contents": [{
+        "parts": [{"text": "Explain quantum computing"}]
+      }]
     }
 )
 
 print(response.json())
 ```
 
-> **Note**: The middleware automatically selects and rotates available API keys, handles errors with intelligent retry logic, and logs all requests for monitoring. Connection pooling ensures optimal performance under load.
+> **Note**: The middleware automatically selects and rotates available API keys, handles errors with intelligent retry logic, and logs all requests for monitoring. Connection pooling ensures optimal performance under load. Enhanced streaming includes chunk-level retry with graceful degradation.
+
+### Bulk Operations
+
+#### Importing and Exporting API Keys
+
+The middleware supports bulk operations to easily manage multiple API keys:
+
+**Exporting Keys:**
+1. Navigate to `http://localhost:5000/middleware/keys`
+2. Click the "Import / Export" button
+3. Click "Copy to Clipboard" to export all keys as JSON
+4. Store the exported JSON securely as a backup
+
+**Importing Keys:**
+1. Click the "Import / Export" button in the keys management interface
+2. Paste your JSON backup in the import textarea
+3. Click "Import from Text" to import all keys
+4. Existing keys (based on key value) will be automatically skipped
+
+**Export Format:**
+```json
+[
+  {
+    "name": "Production Key",
+    "key_value": "AIzaSy...",
+    "note": "Main production API key"
+  },
+  {
+    "name": "Development Key",
+    "key_value": "AIzaSy...",
+    "note": "Used for testing and development"
+  }
+]
+```
+
+#### Bulk Actions
+
+Perform bulk operations on multiple keys at once:
+
+1. Select multiple keys using the checkboxes in the keys table
+2. Choose from the bulk actions dropdown:
+   - **Set Healthy**: Mark selected keys as healthy and available for use
+   - **Set Disabled**: Disable selected keys temporarily
+   - **Delete Selected**: Permanently remove selected keys
+3. Click "Apply" to execute the bulk action
+
+> **Note**: Bulk actions are irreversible for delete operations. Always export your keys before performing bulk deletions.
 
 ### Viewing API Documentation
 
 Navigate to `http://localhost:5000/middleware/swagger/` to access the interactive Swagger UI with full API documentation.
+
+### Advanced Timeout Configuration
+
+The middleware provides comprehensive timeout configuration for different scenarios:
+
+#### Timeout Types
+
+- **Connection Timeout**: Time to establish the initial TCP connection (default: 10 seconds)
+- **Read Timeout**: Time to wait for response headers/initial data after connection (default: 60 seconds)
+- **Streaming Timeout**: Time to wait for each chunk during streaming operations (default: 120 seconds)
+- **Request Timeout**: Legacy timeout setting (still supported for backward compatibility)
+
+#### Configuration
+
+All timeout settings can be configured via the settings interface:
+
+1. Navigate to `http://localhost:5000/middleware/settings`
+2. Adjust timeout values based on your needs:
+   - **Connect Timeout**: 5-30 seconds (recommended: 10 seconds)
+   - **Read Timeout**: 30-120 seconds (recommended: 60 seconds)
+   - **Streaming Timeout**: 60-300 seconds (recommended: 120 seconds)
+   - **Max Stream Retries**: 1-5 attempts (recommended: 2 attempts)
+
+#### Timeout Behavior
+
+- **Connection Timeouts**: Trigger automatic key failover and retry logic
+- **Read Timeouts**: Trigger retry with exponential backoff
+- **Streaming Timeouts**: Implement chunk-level retry with graceful degradation
+- **Buffer Optimization**: Dynamic buffer sizing based on request size and content type
+
+#### Streaming with Retry Logic
+
+The enhanced streaming includes automatic retry mechanisms:
+
+- **Max Retries**: Configurable attempts per failed chunk
+- **Backoff Strategy**: Exponential backoff (1s, 2s, 4s...)
+- **Graceful Degradation**: Attempts to provide partial response on complete failure
+- **Resource Management**: Automatic connection cleanup and memory-efficient buffering
+
+For detailed timeout configuration information, see the [Timeout Configuration Guide](TIMEOUT_CONFIGURATION.md).
 
 ## ⚙️ Configuration
 
@@ -231,8 +342,10 @@ The middleware includes intelligent performance optimizations:
 - **Connection Pooling**: 20 base connections, 100 max connections with HTTP keep-alive
 - **Retry Logic**: Up to 7 retry attempts with exponential backoff for failed requests
 - **Response Caching**: 5-minute cache for model discovery endpoints
-- **Streaming Support**: Real-time response streaming for generative AI
+- **Streaming Support**: Real-time response streaming for generative AI with chunk-level retry
 - **Thread Safety**: All database operations use thread-safe locks
+- **Dynamic Buffer Optimization**: Automatic buffer sizing based on request characteristics
+- **Enhanced Timeout Management**: Granular control over connection, read, and streaming timeouts
 
 These settings can be configured in real-time via the settings page without application restart.
 
@@ -247,27 +360,40 @@ These settings can be configured in real-time via the settings page without appl
 
 - `GET /middleware/api/keys` - Get all API keys with KPI data
 - `GET /middleware/api/keys/<id>` - Get specific key details
+- `GET /middleware/api/keys/<id>/stats` - Get detailed statistics for a specific key
 - `POST /middleware/api/keys` - Create a new API key
+- `POST /middleware/api/keys/bulk-action` - Perform bulk actions on multiple keys
 - `PUT /middleware/api/keys/<id>` - Update an existing key
 - `DELETE /middleware/api/keys/<id>` - Delete a key
+- `GET /middleware/api/keys/export` - Export all API keys
+- `POST /middleware/api/keys/import` - Import API keys in bulk
 
 ### Monitoring Endpoints
 
 - `GET /middleware/api/logs` - Get live request logs
+- `GET /middleware/api/global-stats` - Get global statistics across all keys
 - `GET /middleware/dashboard` - Access the web dashboard
 - `GET /middleware/settings` - Access performance settings page
+- `GET /middleware/keys` - Access the key management interface
 
 ### Proxy Endpoints
 
 - `POST /v1/models/<model>:generateContent` - Gemini API proxy
 - `POST /v1beta/models/<model>:generateContent` - Gemini Beta API proxy
+- `POST /v1/models/<model>:streamGenerateContent` - Gemini streaming API proxy
+- `POST /v1beta/models/<model>:streamGenerateContent` - Gemini Beta streaming API proxy
+- `POST /v1/models/<model>:countTokens` - Gemini token counting API proxy
+- `POST /v1beta/models/<model>:countTokens` - Gemini Beta token counting API proxy
 - `GET /v1/models` - Model discovery (with 5-minute caching)
+- `GET /v1beta/models` - Gemini Beta model discovery (with 5-minute caching)
 - `POST /v1/chat/completions` - OpenAI-style API proxy
+- `GET /<path>` - Generic proxy for any other API endpoints
 - Additional proxy endpoints available - see Swagger docs
 
 ### Settings Endpoints
 
 - `GET /middleware/api/settings` - Get current performance settings
+- `GET /middleware/api/settings/<setting_key>` - Get a specific setting value
 - `POST /middleware/api/settings` - Update performance settings
 - `POST /middleware/api/settings/reset` - Reset settings to defaults
 
@@ -298,7 +424,7 @@ We welcome contributions! Here's how you can help:
   - `test:` for adding tests
   - `chore:` for maintenance tasks
 
-##  Acknowledgments
+## Acknowledgments
 
 - Built with [Flask](https://flask.palletsprojects.com/) - The lightweight Python web framework
 - API documentation powered by [Flasgger](https://github.com/flasgger/flasgger) (Swagger UI)
