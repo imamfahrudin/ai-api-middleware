@@ -627,6 +627,12 @@ def update_settings():
             validated_settings[key] = value
 
         key_manager.update_settings(validated_settings)
+        
+        # Apply logging configuration changes immediately
+        if 'log_level' in validated_settings:
+            from main import configure_logging
+            configure_logging(validated_settings['log_level'])
+        
         return jsonify({"success": True, "message": "Settings updated successfully"})
 
     except Exception as e:

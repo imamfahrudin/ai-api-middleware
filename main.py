@@ -14,7 +14,15 @@ from app.api_routes import api_bp
 from app.proxy import proxy_bp
 
 # --- Logging Configuration ---
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+def configure_logging(log_level='INFO'):
+    """Configure logging with the specified level"""
+    logging.basicConfig(
+        level=getattr(logging, log_level.upper(), logging.INFO),
+        format='%(asctime)s - %(levelname)s - %(message)s'
+    )
+
+# Initialize with default logging level
+configure_logging()
 
 # --- Flask App Initialization ---
 app = Flask(

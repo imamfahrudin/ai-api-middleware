@@ -9,7 +9,7 @@ from functools import lru_cache
 import io
 
 from app.database import KeyManager
-from app.logging_utils import add_log_entry
+from app.logging_utils import add_log_entry, log_request, log_response, log_performance
 
 proxy_bp = Blueprint('proxy', __name__)
 key_manager = KeyManager()
@@ -470,6 +470,29 @@ def proxy(path):
         # Return a simple 404 for favicon requests to avoid proxying them
         return '', 404
 
+    # --- Logging Configuration Check ---
+    enable_request_logging = key_manager.get_setting('enable_request_logging', 'true').lower() == 'true'
+    log_request_body = key_manager.get_setting('log_request_body', 'false').lower() == 'true'
+    log_response_body = key_manager.get_setting('log_response_body', 'false').lower() == 'true'
+    enable_performance_logging = key_manager.get_setting('enable_performance_logging', 'true').lower() == 'true'
+
+    # Log incoming request if enabled
+    if enable_request_logging:
+        request_body_data = None
+        if log_request_body:
+            try:
+                request_body_data = request.get_json() if request.is_json else request.get_data(as_text=True)
+            except Exception:
+                request_body_data = "[Failed to parse request body]"
+        
+        log_request(
+            method=request.method,
+            path=path,
+            headers=dict(request.headers),
+            body=request_body_data,
+            request_id=request.headers.get('X-Request-ID')
+        )
+
     # --- Universal Translator Logic ---
     target_base_url = "https://generativelanguage.googleapis.com/"
     provider_format = 'gemini' # Default to Gemini
@@ -661,6 +684,7 @@ def proxy(path):
             request_timeout_tuple = (connect_timeout, min(read_timeout, streaming_timeout))
 
             # Add request ID if enabled
+            request_id = None
             if enable_request_id_injection:
                 request_id = str(uuid.uuid4())
                 headers['X-Request-ID'] = request_id
@@ -678,6 +702,14 @@ def proxy(path):
                 resp = requests.request(method=request.method, url=target_url, headers=headers, data=request_data, params=request_params, stream=streaming_enabled, timeout=request_timeout_tuple)
 
             latency_ms = int((time.time() - start_time) * 1000)
+            
+            # Log performance metrics if enabled
+            if enable_performance_logging:
+                log_performance(
+                    operation=f"{request.method} {path}",
+                    duration_ms=latency_ms,
+                    details=f"Key: {key_info['name']}, Status: {resp.status_code}"
+                )
 
             tokens_in, tokens_out = 0, 0
             if resp.ok:
@@ -746,9 +778,21 @@ def proxy(path):
                     response = Response(generate(), status=resp.status_code)
                     
                     # Copy important headers from upstream response
+                    response_headers = {}
                     for header_name in ['Content-Type', 'Transfer-Encoding', 'Cache-Control']:
                         if header_name in resp.headers:
                             response.headers[header_name] = resp.headers[header_name]
+                            response_headers[header_name] = resp.headers[header_name]
+                    
+                    # Log response if enabled
+                    if enable_request_logging:
+                        log_response(
+                            status_code=resp.status_code,
+                            headers=response_headers,
+                            body="[Streaming response]" if log_response_body else None,
+                            request_id=request_id,
+                            latency_ms=latency_ms
+                        )
                     
                     # Don't close resp here - let the generator handle it
                 else:
@@ -770,6 +814,23 @@ def proxy(path):
                         pass
 
                     response = Response(response_content, status=resp.status_code, content_type=resp.headers.get('Content-Type'))
+                    
+                    # Log response if enabled
+                    if enable_request_logging:
+                        response_body_data = None
+                        if log_response_body:
+                            try:
+                                response_body_data = json.loads(response_content) if response_content else None
+                            except (json.JSONDecodeError, UnicodeDecodeError):
+                                response_body_data = f"[Binary data: {len(response_content) if response_content else 0} bytes]"
+                        
+                        log_response(
+                            status_code=resp.status_code,
+                            headers=dict(resp.headers),
+                            body=response_body_data,
+                            request_id=request_id,
+                            latency_ms=latency_ms
+                        )
 
                     # Ensure response cleanup for non-streaming responses only
                     try:
@@ -816,6 +877,15 @@ def proxy(path):
                 
         except requests.exceptions.RequestException as e:
             latency_ms = int((time.time() - start_time) * 1000)
+            
+            # Log performance metrics for failed requests if enabled
+            if enable_performance_logging:
+                log_performance(
+                    operation=f"{request.method} {path} (FAILED)",
+                    duration_ms=latency_ms,
+                    details=f"Key: {key_info['name']}, Error: {str(e)}"
+                )
+            
             add_log_entry(f"NETWORK ERROR on key '{key_info['name']}'! {e}", "text-orange-500")
             key_manager.update_key_stats(key_id, False, model_name, error_code=599, latency_ms=latency_ms)
             
