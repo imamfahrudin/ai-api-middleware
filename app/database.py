@@ -433,8 +433,9 @@ class KeyManager:
                     ORDER BY COALESCE(daily_stats.requests, 0) ASC
                     LIMIT 1
                 """
-                params.insert(0, today_str)  # Insert at beginning for LEFT JOIN
-                cursor.execute(query, tuple(params))
+                # Build params in correct order: today_str first, then exclude_ids
+                query_params = [today_str] + params
+                cursor.execute(query, tuple(query_params))
             elif failover_strategy == 'random':
                 # Select a random key
                 query = f"SELECT * FROM keys {where_clause} ORDER BY RANDOM() LIMIT 1"
