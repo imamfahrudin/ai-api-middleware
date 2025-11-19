@@ -571,7 +571,7 @@ class KeyManager:
             # Rate Limiting Settings
             'enable_rate_limiting': 'false',
             'requests_per_minute': '60',
-            'rate_limiting_strategy': 'sliding_window',
+            'rate_limiting_strategy': 'fixed_window',
             'burst_allowance': '10',
 
             # Security Settings

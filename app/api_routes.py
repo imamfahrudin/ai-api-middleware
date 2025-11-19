@@ -522,6 +522,28 @@ def update_settings():
             'model_cache_enabled': bool,
             'max_retries': int,
             'request_timeout': int,
+            'connect_timeout': int,
+            'read_timeout': int,
+            'streaming_timeout': int,
+            'cache_timeout': int,
+            'model_cache_timeout': int,
+
+            # Connection & Retry Settings
+            'retry_total': int,
+            'retry_backoff_factor': float,
+            'pool_connections': int,
+            'pool_maxsize': int,
+            'max_stream_retries': int,
+            'chunk_retry_delay': float,
+
+            # Buffer Optimization Settings
+            'small_request_threshold': int,
+            'large_request_threshold': int,
+            'small_buffer_size': int,
+            'large_buffer_size': int,
+            'min_buffer_size': int,
+            'max_buffer_size': int,
+            'json_buffer_limit': int,
 
             # Logging & Monitoring Settings
             'enable_request_logging': bool,
