@@ -1,77 +1,97 @@
 # Settings Implementation Analysis
 
-This document analyzes which settings from the UI (settings.html) are properly implemented in the backend code.
+This document tracks which settings from the UI (settings.html) are properly implemented in the backend code.
+
+> **Note**: This document focuses on implementation status, not specific line numbers which change frequently. Use code search (`grep` or IDE search) to find exact locations.
 
 ## ✅ Fully Implemented Settings
 
 ### Performance Settings
-- **streaming_enabled** - Used in proxy.py line 594, controls response streaming
-- **connection_pooling_enabled** - Used in proxy.py line 595, controls HTTP connection pooling
-- **model_cache_enabled** - Used in proxy.py line 303, controls model list caching
-- **max_retries** - Used in proxy.py line 549, controls retry attempts
-- **request_timeout** - Used in proxy.py line 598, controls request timeout
-- **connect_timeout** - Used in proxy.py line 599, controls connection timeout
-- **read_timeout** - Used in proxy.py line 600, controls read timeout
-- **streaming_timeout** - Used in proxy.py line 601, controls streaming timeout
-- **cache_timeout** - Used in proxy.py line 145, controls model cache TTL
-- **model_cache_timeout** - Used in proxy.py line 169, controls model cache request timeout
+| Setting | Location | Purpose |
+|---------|----------|---------|
+| **streaming_enabled** | `make_request()` in proxy.py | Controls response streaming |
+| **connection_pooling_enabled** | `make_request()` in proxy.py | Controls HTTP connection pooling |
+| **model_cache_enabled** | `get_models_route()` in proxy.py | Controls model list caching |
+| **max_retries** | `proxy_request()` in proxy.py | Controls retry attempts |
+| **request_timeout** | `make_request()` in proxy.py | Controls request timeout |
+| **connect_timeout** | `make_request()` in proxy.py | Controls connection timeout |
+| **read_timeout** | `make_request()` in proxy.py | Controls read timeout |
+| **streaming_timeout** | `make_request()` in proxy.py | Controls streaming timeout |
+| **cache_timeout** | Model cache initialization in proxy.py | Controls model cache TTL |
+| **model_cache_timeout** | Model cache requests in proxy.py | Controls model cache request timeout |
 
 ### Connection & Retry Settings
-- **retry_total** - Used in proxy.py line 23, controls HTTP adapter retry total
-- **retry_backoff_factor** - Used in proxy.py line 24, controls retry backoff factor
-- **pool_connections** - Used in proxy.py line 25, controls connection pool size
-- **pool_maxsize** - Used in proxy.py line 26, controls max pool size
-- **max_stream_retries** - Used in proxy.py line 76, controls streaming retry attempts
-- **chunk_retry_delay** - Used in proxy.py line 82, controls chunk retry delay
+| Setting | Location | Purpose |
+|---------|----------|---------|
+| **retry_total** | HTTP adapter setup in proxy.py | Controls HTTP adapter retry total |
+| **retry_backoff_factor** | HTTP adapter setup in proxy.py | Controls retry backoff factor |
+| **pool_connections** | HTTP adapter setup in proxy.py | Controls connection pool size |
+| **pool_maxsize** | HTTP adapter setup in proxy.py | Controls max pool size |
+| **max_stream_retries** | Streaming logic in proxy.py | Controls streaming retry attempts |
+| **chunk_retry_delay** | Chunk processing in proxy.py | Controls chunk retry delay |
 
 ### Buffer Optimization Settings
-- **buffer_size** - Used in proxy.py line 596, controls default buffer size
-- **small_request_threshold** - Used in proxy.py line 614, controls small request threshold
-- **large_request_threshold** - Used in proxy.py line 615, controls large request threshold
-- **small_buffer_size** - Used in proxy.py line 616, controls small buffer size
-- **large_buffer_size** - Used in proxy.py line 617, controls large buffer size
-- **min_buffer_size** - Used in proxy.py line 618, controls minimum buffer size
-- **max_buffer_size** - Used in proxy.py line 619, controls maximum buffer size
-- **json_buffer_limit** - Used in proxy.py line 736, controls JSON buffer for token extraction
+| Setting | Location | Purpose |
+|---------|----------|---------|
+| **buffer_size** | `make_request()` in proxy.py | Controls default buffer size |
+| **small_request_threshold** | Buffer sizing logic in proxy.py | Controls small request threshold |
+| **large_request_threshold** | Buffer sizing logic in proxy.py | Controls large request threshold |
+| **small_buffer_size** | Buffer sizing logic in proxy.py | Controls small buffer size |
+| **large_buffer_size** | Buffer sizing logic in proxy.py | Controls large buffer size |
+| **min_buffer_size** | Buffer sizing logic in proxy.py | Controls minimum buffer size |
+| **max_buffer_size** | Buffer sizing logic in proxy.py | Controls maximum buffer size |
+| **json_buffer_limit** | Token extraction in proxy.py | Controls JSON buffer for token extraction |
 
 ### Logging & Monitoring Settings
-- **enable_request_logging** - Used in proxy.py line 474, controls request logging
-- **log_level** - Used in main.py line 17, controls global log level
-- **enable_performance_logging** - Used in proxy.py line 477, controls performance logging
-- **log_request_body** - Used in proxy.py line 475, controls request body logging
-- **log_response_body** - Used in proxy.py line 476, controls response body logging
-- **enable_metrics_collection** - Used in proxy.py line 478, controls metrics collection and stats updates (lines 844, 855, 897)
+| Setting | Location | Purpose |
+|---------|----------|---------|
+| **enable_request_logging** | Logging section in proxy.py | Controls request logging |
+| **log_level** | App initialization in main.py | Controls global log level |
+| **enable_performance_logging** | Logging section in proxy.py | Controls performance logging |
+| **log_request_body** | Logging section in proxy.py | Controls request body logging |
+| **log_response_body** | Logging section in proxy.py | Controls response body logging |
+| **enable_metrics_collection** | Logging section & stats updates in proxy.py | Controls metrics collection |
 
 ### Advanced Proxy Settings
-- **enable_request_id_injection** - Used in proxy.py line 597, controls request ID injection
-- **failover_strategy** - Used in database.py lines 406-431, controls key selection strategy (round_robin, least_used, random)
+| Setting | Location | Purpose |
+|---------|----------|---------|
+| **enable_request_id_injection** | `make_request()` in proxy.py | Controls request ID injection |
+| **failover_strategy** | `get_next_key()` in database.py | Controls key selection strategy (round_robin, least_used, random) |
 
 ## ❌ Missing Implementation Areas
 
 ### Rate Limiting Settings
-- **enable_rate_limiting** - Defined in database.py:572 but not implemented in proxy.py
-- **requests_per_minute** - Defined in database.py:573 but not implemented in proxy.py
-- **rate_limiting_strategy** - Defined in database.py:574 but not implemented in proxy.py
-- **burst_allowance** - Defined in database.py:575 but not implemented in proxy.py
+| Setting | Status | Notes |
+|---------|--------|-------|
+| **enable_rate_limiting** | ❌ Not implemented | Defined in `DEFAULT_SETTINGS` in database.py but no logic in proxy.py |
+| **requests_per_minute** | ❌ Not implemented | Setting exists but no rate limiter |
+| **rate_limiting_strategy** | ❌ Not implemented | Setting exists but no rate limiter |
+| **burst_allowance** | ❌ Not implemented | Setting exists but no rate limiter |
 
 ### Security Settings
-- **enable_cors** - Defined in database.py:578 but not implemented in proxy.py
-- **cors_origins** - Defined in database.py:579 but not implemented in proxy.py
-- **enable_request_validation** - Defined in database.py:580 but not implemented in proxy.py
-- **max_request_size** - Defined in database.py:581 but not implemented in proxy.py
-- **blocked_user_agents** - Defined in database.py:582 but not implemented in proxy.py
+| Setting | Status | Notes |
+|---------|--------|-------|
+| **enable_cors** | ❌ Not implemented | No CORS middleware found |
+| **cors_origins** | ❌ Not implemented | No CORS configuration |
+| **enable_request_validation** | ❌ Not implemented | No request validation logic |
+| **max_request_size** | ❌ Not implemented | No request size checking |
+| **blocked_user_agents** | ❌ Not implemented | No user agent filtering |
 
 ### Advanced Proxy Settings
-- **enable_health_checks** - Defined in database.py:585 but not implemented in proxy.py
-- **health_check_interval** - Defined in database.py:586 but not implemented in proxy.py
-- **enable_circuit_breaker** - Defined in database.py:588 but not implemented in proxy.py
-- **circuit_breaker_threshold** - Defined in database.py:589 but not implemented in proxy.py
+| Setting | Status | Notes |
+|---------|--------|-------|
+| **enable_health_checks** | ❌ Not implemented | No health check endpoints |
+| **health_check_interval** | ❌ Not implemented | No health monitoring |
+| **enable_circuit_breaker** | ❌ Not implemented | No circuit breaker pattern |
+| **circuit_breaker_threshold** | ❌ Not implemented | No circuit breaker logic |
 
 ### Performance Fine-tuning
-- **max_concurrent_requests** - Defined in database.py:594 but not implemented in proxy.py
-- **keepalive_timeout** - Defined in database.py:595 but not implemented in proxy.py
-- **enable_graceful_shutdown** - Defined in database.py:596 but not implemented in proxy.py
-- **cache_max_age** - Defined in database.py:597 but not implemented in proxy.py
+| Setting | Status | Notes |
+|---------|--------|-------|
+| **max_concurrent_requests** | ❌ Not implemented | No concurrent request limiting |
+| **keepalive_timeout** | ❌ Not implemented | No keepalive configuration |
+| **enable_graceful_shutdown** | ❌ Not implemented | No graceful shutdown handler |
+| **cache_max_age** | ❌ Not implemented | No cache control headers |
 
 ## 📊 Implementation Summary
 
@@ -80,23 +100,40 @@ This document analyzes which settings from the UI (settings.html) are properly i
 
 **Total Settings**: 37 settings defined in database.py
 
+## 🔍 Quick Reference: Finding Implementation Code
+
+To find where a setting is used, search for these patterns:
+
+```bash
+# Find setting retrieval
+grep -n "get_setting('setting_name')" app/proxy.py app/database.py
+
+# Find setting definition
+grep -n "setting_name" app/database.py
+
+# Find related functionality
+grep -n "streaming_enabled\|streaming\|stream" app/proxy.py
+```
+
 ## 🔍 Key Findings
 
-1. **✅ FIXED**: `enable_metrics_collection` now properly retrieved from settings (proxy.py line 478)
-2. **✅ FIXED**: `failover_strategy` now implemented with three strategies (database.py lines 406-431):
+### ✅ Recent Fixes
+1. **`enable_metrics_collection`** - Now properly retrieved from settings and controls stats updates
+2. **`failover_strategy`** - Fully implemented in `get_next_key()` in database.py with three strategies:
    - `round_robin` (default): Least recently rotated key
    - `least_used`: Key with fewest requests today
    - `random`: Random healthy key selection
-3. **Rate Limiting** - No rate limiting logic found in proxy.py
-4. **CORS Handling** - No CORS middleware found
-5. **Request Size Validation** - No request size validation
-6. **User Agent Blocking** - No user agent filtering
-7. **Health Checks** - No health check implementation
-8. **Circuit Breaker** - No circuit breaker pattern
-9. **Concurrent Request Limiting** - No concurrent request limiting
-10. **Graceful Shutdown** - No graceful shutdown handling
-11. **Cache Age Headers** - No cache control header implementation
-12. **Request Validation** - No request validation logic found
+
+### ❌ Known Gaps
+- **Rate Limiting** - No rate limiting logic found
+- **CORS Handling** - No CORS middleware
+- **Request Size Validation** - No request size validation
+- **User Agent Blocking** - No user agent filtering
+- **Health Checks** - No health check implementation
+- **Circuit Breaker** - No circuit breaker pattern
+- **Concurrent Request Limiting** - No concurrent request limiting
+- **Graceful Shutdown** - No graceful shutdown handling
+- **Cache Age Headers** - No cache control header implementation
 
 ## 📝 Summary
 
