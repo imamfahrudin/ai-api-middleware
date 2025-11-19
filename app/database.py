@@ -10,7 +10,7 @@ class KeyManager:
     """A thread-safe class to manage API keys with advanced, historical tracking and self-healing capabilities."""
     def __init__(self, db_path='data/keys.db'):
         self.db_path = db_path
-        self.lock = threading.Lock()
+        self.lock = threading.RLock()  # Use RLock for reentrant locking to prevent deadlock
         os.makedirs(os.path.dirname(db_path), exist_ok=True)
         self.conn = sqlite3.connect(db_path, check_same_thread=False)
         self.conn.row_factory = sqlite3.Row
@@ -414,33 +414,39 @@ class KeyManager:
             failover_strategy = self.get_setting('failover_strategy', 'round_robin')
             
             # Build WHERE clause with exclusion list if provided
-            where_clause = "WHERE status = 'Healthy'"
+            where_clause = "WHERE keys.status = 'Healthy'"
             params = []
             
             if exclude_ids:
                 placeholders = ','.join('?' for _ in exclude_ids)
-                where_clause += f" AND id NOT IN ({placeholders})"
+                where_clause += f" AND keys.id NOT IN ({placeholders})"
                 params.extend(exclude_ids)
             
             # Select key based on failover strategy
             if failover_strategy == 'least_used':
-                # Select key with fewest requests today
+                # Select key with fewest requests today using JOIN instead of subquery
                 today_str = datetime.datetime.now(datetime.timezone.utc).date().isoformat()
-                order_by = "ORDER BY (SELECT COALESCE(SUM(requests), 0) FROM daily_stats WHERE key_id = keys.id AND date = ?) ASC"
-                params.append(today_str)
+                query = f"""
+                    SELECT keys.* FROM keys
+                    LEFT JOIN daily_stats ON keys.id = daily_stats.key_id AND daily_stats.date = ?
+                    {where_clause}
+                    ORDER BY COALESCE(daily_stats.requests, 0) ASC
+                    LIMIT 1
+                """
+                params.insert(0, today_str)  # Insert at beginning for LEFT JOIN
+                cursor.execute(query, tuple(params))
             elif failover_strategy == 'random':
                 # Select a random key
-                order_by = "ORDER BY RANDOM()"
+                query = f"SELECT * FROM keys {where_clause} ORDER BY RANDOM() LIMIT 1"
+                cursor.execute(query, tuple(params))
             elif failover_strategy == 'priority':
                 # Select key with highest priority (lower number = higher priority), then by least recently used
-                order_by = "ORDER BY priority ASC, last_rotated_at ASC"
+                query = f"SELECT * FROM keys {where_clause} ORDER BY keys.priority ASC, keys.last_rotated_at ASC LIMIT 1"
+                cursor.execute(query, tuple(params))
             else:  # 'round_robin' (default)
                 # Select the least recently used key for rotation
-                order_by = "ORDER BY last_rotated_at ASC"
-            
-            # Execute query
-            query = f"SELECT * FROM keys {where_clause} {order_by} LIMIT 1"
-            cursor.execute(query, tuple(params))
+                query = f"SELECT * FROM keys {where_clause} ORDER BY keys.last_rotated_at ASC LIMIT 1"
+                cursor.execute(query, tuple(params))
             
             key_info = cursor.fetchone()
 
