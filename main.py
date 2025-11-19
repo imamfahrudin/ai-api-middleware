@@ -98,6 +98,12 @@ def settings():
 def keys():
     return render_template('keys.html')
 
+# --- Live Mission Feed Route ---
+@app.route('/middleware/logs')
+@login_required
+def logs():
+    return render_template('logs.html')
+
 # --- Main Execution ---
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))

@@ -1,5 +1,5 @@
 let charts = {};
-let globalState = { previousStats: {}, isLogHovered: false };
+let globalState = { previousStats: {} };
 const CHART_COLORS = {
     red: 'rgb(239, 68, 68)',
     orange: 'rgb(249, 115, 22)',
@@ -19,34 +19,6 @@ function getStatusBadge(status) {
 function getHealthBar(kpi) {
     const kpiColor = kpi > 85 ? 'bg-green-500' : kpi > 60 ? 'bg-yellow-500' : 'bg-red-500';
     return `<div class="w-full bg-gray-700 rounded-full h-2.5 mt-1"><div class="health-bar-fill ${kpiColor} h-2.5 rounded-full" style="width: ${kpi}%" title="Health: ${kpi}%"></div></div>`;
-}
-
-async function fetchKeys() {
-    const response = await fetch('/middleware/api/keys');
-    const keys = await response.json();
-    const sidebarList = document.getElementById('keys-sidebar-list');
-
-    sidebarList.innerHTML = '';
-    keys.forEach(key => {
-        const li = document.createElement('li');
-        li.className = 'sidebar-item p-3 rounded cursor-pointer hover:bg-gray-700';
-        li.dataset.keyId = key.id;
-        li.dataset.keyName = key.name;
-        li.dataset.keyStatus = key.status;
-        const keyDisplay = key.key_value.length > 12 ? `${key.key_value.slice(0, 4)}...${key.key_value.slice(-4)}` : key.key_value;
-        li.innerHTML = `
-            <div class="flex items-center gap-2">
-                ${getStatusBadge(key.status)}
-                <div class="font-bold flex-grow">${key.name}</div>
-                <div class="text-xs text-gray-400 font-mono">${keyDisplay}</div>
-            </div>
-            ${getHealthBar(key.kpi)}`;
-        li.addEventListener('click', (e) => {
-            e.stopPropagation();
-            setActiveView(li, () => displayKeyDetails(key.id, key.name));
-        });
-        sidebarList.appendChild(li);
-    });
 }
 
 function setActiveView(element, displayFunction) {
@@ -90,16 +62,8 @@ async function displayGlobalOverview() {
             <div class="glass-card p-4"><canvas id="healthStatusChart"></canvas></div>
             <div class="glass-card p-4"><canvas id="globalModelChart"></canvas></div>
             <div class="glass-card p-4"><canvas id="errorTypeChart"></canvas></div>
-        </div>
-        <div class="grid grid-cols-1">
-            <div id="live-log-container" class="glass-card p-4 h-48 overflow-y-scroll font-mono text-sm"><h3 class="text-lg font-bold mb-2">Live Mission Feed</h3><ul id="live-log-list"></ul></div>
         </div>`;
 
-    const logContainer = document.getElementById('live-log-container');
-    if(logContainer) {
-        logContainer.addEventListener('mouseenter', () => globalState.isLogHovered = true);
-        logContainer.addEventListener('mouseleave', () => globalState.isLogHovered = false);
-    }
     await updateGlobalData();
 }
 
@@ -177,21 +141,7 @@ async function displayKeyDetails(keyId, keyName) {
     updateChart('latencyChart', 'line', 'Average Latency (ms)', labels, [{ label: 'Avg Latency', data: stats.map(s => s.requests > 0 ? s.total_latency_ms / s.requests : 0), borderColor: CHART_COLORS.yellow }]);
 }
 
-async function fetchLogs() {
-    const response = await fetch('/middleware/api/logs');
-    const logs = await response.json();
-    const logList = document.getElementById('live-log-list');
-    if(!logList) return;
 
-    logList.innerHTML = logs.map(log => `<li><span class="text-gray-500">${new Date(log.time).toLocaleTimeString()}</span> <span class="${log.color}">${log.msg}</span></li>`).join('');
-
-    if(!globalState.isLogHovered) {
-        const logContainer = document.getElementById('live-log-container');
-        if(logContainer) {
-            logContainer.scrollTop = logContainer.scrollHeight;
-        }
-    }
-}
 
 function updateChart(canvasId, type, title, labels, datasets) {
     const ctx = document.getElementById(canvasId)?.getContext('2d');
@@ -350,11 +300,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Initial load
     displayGlobalOverview();
-    fetchKeys();
 
     // Set up intervals
     setInterval(updateGlobalData, 5000);
-    setInterval(fetchLogs, 2000);
     setInterval(updateClock, 1000);
-    setInterval(fetchKeys, 30000); // Refresh keys every 30 seconds
 });
