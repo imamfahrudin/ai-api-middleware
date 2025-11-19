@@ -839,17 +839,21 @@ def proxy(path):
                     except Exception as cleanup_error:
                         add_log_entry(f"Non-streaming response cleanup failed: {cleanup_error}", "text-orange-500")
 
-                # Update stats after creating response
-                key_manager.update_key_stats(key_id, True, model_name,
-                    error_code=None, tokens_in=tokens_in, tokens_out=tokens_out, latency_ms=latency_ms)
+                # Update stats after creating response (only if metrics collection is enabled)
+                if enable_metrics_collection:
+                    key_manager.update_key_stats(key_id, True, model_name,
+                        error_code=None, tokens_in=tokens_in, tokens_out=tokens_out, latency_ms=latency_ms)
 
                 return response
             
             # Handle error responses
             else:
                 add_log_entry(f"ERROR ({resp.status_code}) from '{key_info['name']}'.", "text-red-500")
-                key_manager.update_key_stats(key_id, False, model_name,
-                    error_code=resp.status_code, latency_ms=latency_ms)
+                
+                # Update stats for error response (only if metrics collection is enabled)
+                if enable_metrics_collection:
+                    key_manager.update_key_stats(key_id, False, model_name,
+                        error_code=resp.status_code, latency_ms=latency_ms)
                 
                 # Retry on 503 only, and only if we haven't exceeded max retries
                 if resp.status_code == 503 and attempt < max_retries:
@@ -887,7 +891,10 @@ def proxy(path):
                 )
             
             add_log_entry(f"NETWORK ERROR on key '{key_info['name']}'! {e}", "text-orange-500")
-            key_manager.update_key_stats(key_id, False, model_name, error_code=599, latency_ms=latency_ms)
+            
+            # Update stats for network error (only if metrics collection is enabled)
+            if enable_metrics_collection:
+                key_manager.update_key_stats(key_id, False, model_name, error_code=599, latency_ms=latency_ms)
             
             # Retry on network errors if we haven't exceeded max retries
             if attempt < max_retries:
