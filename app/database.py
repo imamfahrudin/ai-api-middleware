@@ -413,34 +413,34 @@ class KeyManager:
             # Get failover strategy from settings
             failover_strategy = self.get_setting('failover_strategy', 'round_robin')
             
+            # Build WHERE clause with exclusion list if provided
+            where_clause = "WHERE status = 'Healthy'"
+            params = []
+            
+            if exclude_ids:
+                placeholders = ','.join('?' for _ in exclude_ids)
+                where_clause += f" AND id NOT IN ({placeholders})"
+                params.extend(exclude_ids)
+            
             # Select key based on failover strategy
             if failover_strategy == 'least_used':
                 # Select key with fewest requests today
-                order_by = "ORDER BY (SELECT COALESCE(SUM(requests), 0) FROM daily_stats WHERE key_id = keys.id AND date = ?) ASC"
                 today_str = datetime.datetime.now(datetime.timezone.utc).date().isoformat()
-                order_params = (today_str,)
+                order_by = "ORDER BY (SELECT COALESCE(SUM(requests), 0) FROM daily_stats WHERE key_id = keys.id AND date = ?) ASC"
+                params.append(today_str)
             elif failover_strategy == 'random':
                 # Select a random key
                 order_by = "ORDER BY RANDOM()"
-                order_params = ()
             elif failover_strategy == 'priority':
                 # Select key with highest priority (lower number = higher priority), then by least recently used
                 order_by = "ORDER BY priority ASC, last_rotated_at ASC"
-                order_params = ()
             else:  # 'round_robin' (default)
                 # Select the least recently used key for rotation
                 order_by = "ORDER BY last_rotated_at ASC"
-                order_params = ()
             
-            # Build and execute query with exclusion list if provided
-            if exclude_ids:
-                placeholders = ','.join('?' for _ in exclude_ids)
-                query = f"SELECT * FROM keys WHERE status = 'Healthy' AND id NOT IN ({placeholders}) {order_by} LIMIT 1"
-                params = list(exclude_ids) + list(order_params)
-                cursor.execute(query, params)
-            else:
-                query = f"SELECT * FROM keys WHERE status = 'Healthy' {order_by} LIMIT 1"
-                cursor.execute(query, order_params)
+            # Execute query
+            query = f"SELECT * FROM keys {where_clause} {order_by} LIMIT 1"
+            cursor.execute(query, tuple(params))
             
             key_info = cursor.fetchone()
 
