@@ -33,6 +33,8 @@ def get_keys():
                 type: string
               status:
                 type: string
+              priority:
+                type: integer
               total_requests:
                 type: integer
               successful_requests:
@@ -98,6 +100,8 @@ def get_key_details_route(key_id):
               type: string
             note:
               type: string
+            priority:
+              type: integer
             total_requests:
               type: integer
             successful_requests:
@@ -223,6 +227,9 @@ def add_key_route():
             note:
               type: string
               description: Optional note about the key
+            priority:
+              type: integer
+              description: Priority level (lower number = higher priority)
     responses:
       201:
         description: Key added successfully
@@ -232,7 +239,7 @@ def add_key_route():
         description: Redirect to login if not authenticated
     """
     data = request.get_json()
-    success, msg = key_manager.add_key(data.get('key'), data.get('name'), data.get('note'))
+    success, msg = key_manager.add_key(data.get('key'), data.get('name'), data.get('note'), data.get('priority'))
     return jsonify({"success": success, "message": msg}), 201 if success else 400
 
 @api_bp.route('/middleware/api/keys/bulk-action', methods=['POST'])
@@ -309,6 +316,9 @@ def update_key_route(key_id):
               enum: [active, inactive, error]
             note:
               type: string
+            priority:
+              type: integer
+              description: Priority level (lower number = higher priority)
     responses:
       200:
         description: Key updated successfully
@@ -318,7 +328,7 @@ def update_key_route(key_id):
         description: Redirect to login if not authenticated
     """
     data = request.get_json()
-    success, msg = key_manager.update_key(key_id, new_name=data.get('name'), new_value=data.get('key'), new_status=data.get('status'), new_note=data.get('note'))
+    success, msg = key_manager.update_key(key_id, new_name=data.get('name'), new_value=data.get('key'), new_status=data.get('status'), new_note=data.get('note'), new_priority=data.get('priority'))
     return jsonify({"success": success, "message": msg}), 200 if success else 400
 
 @api_bp.route('/middleware/api/keys/<int:key_id>', methods=['DELETE'])
@@ -374,6 +384,8 @@ def export_keys_route():
                 type: string
               status:
                 type: string
+              priority:
+                type: integer
       302:
         description: Redirect to login if not authenticated
     """
@@ -414,6 +426,9 @@ def import_keys_route():
               status:
                 type: string
                 description: Key status (active/inactive)
+              priority:
+                type: integer
+                description: Priority level (lower number = higher priority)
     responses:
       200:
         description: Keys imported successfully

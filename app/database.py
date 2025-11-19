@@ -55,7 +55,8 @@ class KeyManager:
                     status TEXT NOT NULL DEFAULT 'Healthy',
                     disabled_until TEXT DEFAULT NULL,
                     note TEXT,
-                    last_rotated_at TEXT NOT NULL DEFAULT '1970-01-01T00:00:00Z'
+                    last_rotated_at TEXT NOT NULL DEFAULT '1970-01-01T00:00:00Z',
+                    priority INTEGER NOT NULL DEFAULT 1
                 )
             """)
 
@@ -66,6 +67,8 @@ class KeyManager:
                 cursor.execute("ALTER TABLE keys ADD COLUMN note TEXT")
             if 'last_rotated_at' not in columns:
                 cursor.execute("ALTER TABLE keys ADD COLUMN last_rotated_at TEXT NOT NULL DEFAULT '1970-01-01T00:00:00Z'")
+            if 'priority' not in columns:
+                cursor.execute("ALTER TABLE keys ADD COLUMN priority INTEGER NOT NULL DEFAULT 1")
             if 'key_type' in columns:
                 logging.info("Old 'key_type' column found. It is no longer used.")
 
@@ -126,7 +129,7 @@ class KeyManager:
     def get_all_keys_from_db(self):
         with self.lock:
             cursor = self.conn.cursor()
-            cursor.execute("SELECT id, name, key_value, status FROM keys ORDER BY id")
+            cursor.execute("SELECT id, name, key_value, status, priority FROM keys ORDER BY id")
             return [dict(row) for row in cursor.fetchall()]
 
     def get_all_keys_with_kpi(self):
@@ -180,19 +183,20 @@ class KeyManager:
                 
         return keys
 
-    def add_key(self, key_value, name=None, note=None):
+    def add_key(self, key_value, name=None, note=None, priority=None):
         if not key_value or len(key_value) < 10: return False, "Invalid key."
         key_name = name.strip() if name and name.strip() else 'Unnamed'
+        key_priority = priority if priority is not None else 1
         with self.lock:
             try:
                 cursor = self.conn.cursor()
-                cursor.execute("INSERT INTO keys (key_value, name, note) VALUES (?, ?, ?)", (key_value, key_name, note))
+                cursor.execute("INSERT INTO keys (key_value, name, note, priority) VALUES (?, ?, ?, ?)", (key_value, key_name, note, key_priority))
                 self.conn.commit()
                 self._invalidate_cache()  # Invalidate cache after adding key
                 return True, "Key added."
             except sqlite3.IntegrityError: return False, "Key exists."
 
-    def update_key(self, key_id, new_name=None, new_value=None, new_status=None, new_note=None):
+    def update_key(self, key_id, new_name=None, new_value=None, new_status=None, new_note=None, new_priority=None):
         with self.lock:
             updates, params = [], []
             if new_name is not None:
@@ -208,6 +212,9 @@ class KeyManager:
             if new_note is not None:
                 updates.append("note = ?")
                 params.append(new_note)
+            if new_priority is not None:
+                updates.append("priority = ?")
+                params.append(new_priority)
 
             if not updates: return False, "No valid data."
             params.append(key_id)
@@ -248,14 +255,14 @@ class KeyManager:
     def get_key_details(self, key_id):
         with self.lock:
             cursor = self.conn.cursor()
-            cursor.execute("SELECT id, name, key_value, status, note FROM keys WHERE id = ?", (key_id,))
+            cursor.execute("SELECT id, name, key_value, status, note, priority FROM keys WHERE id = ?", (key_id,))
             row = cursor.fetchone()
             return dict(row) if row else None
 
     def get_all_keys_for_export(self):
         with self.lock:
             cursor = self.conn.cursor()
-            cursor.execute("SELECT name, key_value, note FROM keys ORDER BY id")
+            cursor.execute("SELECT name, key_value, note, priority FROM keys ORDER BY id")
             return [dict(row) for row in cursor.fetchall()]
 
     def bulk_import_keys(self, keys_data):
@@ -270,13 +277,14 @@ class KeyManager:
                 key_value = key_obj.get('key_value')
                 name = key_obj.get('name', 'Unnamed')
                 note = key_obj.get('note')
+                priority = key_obj.get('priority', 1)
 
                 if not key_value or len(key_value) < 10:
                     skipped_count += 1
                     continue
 
                 try:
-                    cursor.execute("INSERT INTO keys (key_value, name, note) VALUES (?, ?, ?)", (key_value, name, note))
+                    cursor.execute("INSERT INTO keys (key_value, name, note, priority) VALUES (?, ?, ?, ?)", (key_value, name, note, priority))
                     imported_count += 1
                 except sqlite3.IntegrityError:
                     skipped_count += 1
@@ -414,6 +422,10 @@ class KeyManager:
             elif failover_strategy == 'random':
                 # Select a random key
                 order_by = "ORDER BY RANDOM()"
+                order_params = ()
+            elif failover_strategy == 'priority':
+                # Select key with highest priority (lower number = higher priority), then by least recently used
+                order_by = "ORDER BY priority ASC, last_rotated_at ASC"
                 order_params = ()
             else:  # 'round_robin' (default)
                 # Select the least recently used key for rotation

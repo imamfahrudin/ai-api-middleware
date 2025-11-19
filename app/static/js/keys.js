@@ -114,6 +114,15 @@ function displayKeys() {
                 <div class="font-mono text-sm">${formatKeyDisplay(key.key_value)}</div>
             </td>
             <td class="px-6 py-4">
+                <span class="px-2 py-1 text-xs font-medium rounded-full ${
+                    key.priority <= 3 ? 'bg-green-600' :
+                    key.priority <= 6 ? 'bg-yellow-600' :
+                    key.priority <= 9 ? 'bg-orange-600' : 'bg-gray-600'
+                } text-white">
+                    ${key.priority}
+                </span>
+            </td>
+            <td class="px-6 py-4">
                 ${getStatusBadge(key.status)}
             </td>
             <td class="px-6 py-4">
@@ -273,9 +282,11 @@ async function openModal(isEdit = false, id = null, name = '') {
         const details = await response.json();
         noteInput.value = details.note || '';
         document.getElementById('key-status').value = details.status;
+        document.getElementById('key-priority').value = details.priority || 1;
     } else {
         noteInput.value = '';
         document.getElementById('key-status').value = 'Healthy';
+        document.getElementById('key-priority').value = 1;
     }
 
     modal.classList.remove('hidden');
@@ -315,7 +326,8 @@ async function handleFormSubmit(event) {
 
     const url = isEdit ? `/middleware/api/keys/${id}` : '/middleware/api/keys';
     const method = isEdit ? 'PUT' : 'POST';
-    const body = JSON.stringify({ name, key: value || null, status: isEdit ? status : null, note });
+    const priority = document.getElementById('key-priority').value;
+    const body = JSON.stringify({ name, key: value || null, status: isEdit ? status : null, note, priority: parseInt(priority) || 1 });
 
     try {
         const response = await fetch(url, { method, headers: { 'Content-Type': 'application/json' }, body });
