@@ -475,6 +475,7 @@ def proxy(path):
     log_request_body = key_manager.get_setting('log_request_body', 'false').lower() == 'true'
     log_response_body = key_manager.get_setting('log_response_body', 'false').lower() == 'true'
     enable_performance_logging = key_manager.get_setting('enable_performance_logging', 'true').lower() == 'true'
+    enable_metrics_collection = key_manager.get_setting('enable_metrics_collection', 'true').lower() == 'true'
 
     # Log incoming request if enabled
     if enable_request_logging:

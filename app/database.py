@@ -402,12 +402,33 @@ class KeyManager:
             cursor.execute("UPDATE keys SET status='Healthy', disabled_until=NULL WHERE status='Resting' AND disabled_until < ?", (now_iso,))
             self.conn.commit()
 
-            # Select the least recently used key for rotation, excluding already tried keys
+            # Get failover strategy from settings
+            failover_strategy = self.get_setting('failover_strategy', 'round_robin')
+            
+            # Select key based on failover strategy
+            if failover_strategy == 'least_used':
+                # Select key with fewest requests today
+                order_by = "ORDER BY (SELECT COALESCE(SUM(requests), 0) FROM daily_stats WHERE key_id = keys.id AND date = ?) ASC"
+                today_str = datetime.datetime.now(datetime.timezone.utc).date().isoformat()
+                order_params = (today_str,)
+            elif failover_strategy == 'random':
+                # Select a random key
+                order_by = "ORDER BY RANDOM()"
+                order_params = ()
+            else:  # 'round_robin' (default)
+                # Select the least recently used key for rotation
+                order_by = "ORDER BY last_rotated_at ASC"
+                order_params = ()
+            
+            # Build and execute query with exclusion list if provided
             if exclude_ids:
                 placeholders = ','.join('?' for _ in exclude_ids)
-                cursor.execute(f"SELECT * FROM keys WHERE status = 'Healthy' AND id NOT IN ({placeholders}) ORDER BY last_rotated_at ASC LIMIT 1", exclude_ids)
+                query = f"SELECT * FROM keys WHERE status = 'Healthy' AND id NOT IN ({placeholders}) {order_by} LIMIT 1"
+                params = list(exclude_ids) + list(order_params)
+                cursor.execute(query, params)
             else:
-                cursor.execute("SELECT * FROM keys WHERE status = 'Healthy' ORDER BY last_rotated_at ASC LIMIT 1")
+                query = f"SELECT * FROM keys WHERE status = 'Healthy' {order_by} LIMIT 1"
+                cursor.execute(query, order_params)
             
             key_info = cursor.fetchone()
 
