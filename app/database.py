@@ -223,8 +223,22 @@ class KeyManager:
             return cursor.rowcount > 0
 
     def bulk_update_status(self, key_ids, status):
-        if not key_ids or status not in ['Healthy', 'Disabled', 'Resting']:
-            return False, "Invalid data for bulk update."
+        if not key_ids:
+            return False, "No key IDs provided."
+        if status is None or status == 'delete':
+            # Handle bulk delete
+            with self.lock:
+                try:
+                    cursor = self.conn.cursor()
+                    placeholders = ', '.join('?' for _ in key_ids)
+                    cursor.execute(f"DELETE FROM keys WHERE id IN ({placeholders})", key_ids)
+                    self.conn.commit()
+                    self._invalidate_cache()  # Invalidate cache after bulk delete
+                    return True, f"{cursor.rowcount} keys deleted."
+                except sqlite3.Error as e:
+                    return False, f"Database error: {e}"
+        elif status not in ['Healthy', 'Disabled', 'Resting']:
+            return False, "Invalid status for bulk update."
         with self.lock:
             try:
                 cursor = self.conn.cursor()

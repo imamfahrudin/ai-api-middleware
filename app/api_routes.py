@@ -246,7 +246,7 @@ def add_key_route():
 @login_required
 def bulk_action_route():
     """
-    Bulk update status for multiple API keys
+    Bulk update status or delete multiple API keys
     ---
     tags:
       - API Keys
@@ -260,22 +260,21 @@ def bulk_action_route():
           type: object
           required:
             - key_ids
-            - status
           properties:
             key_ids:
               type: array
               items:
                 type: integer
-              description: Array of key IDs to update
+              description: Array of key IDs to update or delete
             status:
               type: string
-              enum: [active, inactive, error]
-              description: New status for the keys
+              enum: [Healthy, Disabled, Resting]
+              description: New status for the keys (omit or set to null to delete)
     responses:
       200:
-        description: Keys updated successfully
+        description: Keys updated or deleted successfully
       400:
-        description: Failed to update keys
+        description: Failed to update or delete keys
       302:
         description: Redirect to login if not authenticated
     """
