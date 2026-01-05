@@ -608,33 +608,12 @@ class KeyManager:
             'log_request_body': 'false',
             'log_response_body': 'false',
 
-            # Rate Limiting Settings
-            'enable_rate_limiting': 'false',
-            'requests_per_minute': '60',
-            'rate_limiting_strategy': 'fixed_window',
-            'burst_allowance': '10',
-
-            # Security Settings
-            'enable_cors': 'true',
-            'cors_origins': '*',
-            'enable_request_validation': 'false',
-            'max_request_size': '10485760',
-            'blocked_user_agents': '',
-
             # Advanced Proxy Settings
-            'enable_health_checks': 'true',
-            'health_check_interval': '300',
             'failover_strategy': 'round_robin',
-            'enable_circuit_breaker': 'false',
-            'circuit_breaker_threshold': '5',
             'enable_request_id_injection': 'true',
 
             # Performance Fine-tuning
-            'buffer_size': '8192',
-            'max_concurrent_requests': '100',
-            'keepalive_timeout': '30',
-            'enable_graceful_shutdown': 'true',
-            'cache_max_age': '300'
+            'buffer_size': '8192'
         }
 
         with self.lock:
