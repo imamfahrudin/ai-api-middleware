@@ -21,8 +21,8 @@ def test_app():
     from app.auth import auth_bp
     app.register_blueprint(auth_bp)
     # Mock render_template to return simple HTML
-    with patch('app.auth.render_template') as mock_render, \
-         patch('app.auth.url_for') as mock_url:
+    with patch('flask.render_template') as mock_render, \
+         patch('flask.url_for') as mock_url:
         mock_render.return_value = '<html>Login</html>'
         mock_url.return_value = '/middleware/'
         yield app

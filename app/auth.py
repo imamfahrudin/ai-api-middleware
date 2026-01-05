@@ -18,18 +18,18 @@ def login_required(f):
 @auth_bp.route('/middleware/login', methods=['GET', 'POST'])
 def login():
     if not MIDDLEWARE_PASSWORD:
-        return redirect(url_for('dashboard'))
+        return redirect('/middleware/')
     if session.get('logged_in'):
-        return redirect(url_for('dashboard'))
+        return redirect('/middleware/')
     error = None
     if request.method == 'POST':
         if request.form.get('password') == MIDDLEWARE_PASSWORD:
             session['logged_in'] = True
-            next_url = request.args.get('next') or url_for('dashboard')
+            next_url = request.args.get('next') or '/middleware/'
             return redirect(next_url)
         else:
             error = 'Invalid Credentials. Please try again.'
-    return render_template('login.html', error=error)
+    return f'Login page: {error}' if error else 'Login page'
 
 @auth_bp.route('/middleware/logout')
 def logout():

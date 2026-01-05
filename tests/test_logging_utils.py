@@ -38,8 +38,32 @@ class TestLoggingUtils:
         log_response(200)
         assert "Response 200" in caplog.text
 
-    def test_log_performance(self, caplog):
-        """Test logging performance."""
-        log_performance("test_operation", 100.5)
-        assert "test_operation" in caplog.text
-        assert "100.5ms" in caplog.text
+    def test_log_response_with_headers(self, caplog):
+        """Test logging response with headers."""
+        headers = {"Content-Type": "application/json", "Set-Cookie": "secret"}
+        log_response(200, headers=headers)
+        assert "Headers:" in caplog.text
+        assert "Content-Type" in caplog.text
+        assert "Set-Cookie" not in caplog.text  # Should be filtered
+
+    def test_log_response_with_body(self, caplog):
+        """Test logging response with body."""
+        body = {"result": "success"}
+        log_response(200, body=body)
+        assert "Body:" in caplog.text
+
+    def test_log_response_with_large_body(self, caplog):
+        """Test logging response with large body gets truncated."""
+        body = "x" * 600
+        log_response(200, body=body)
+        assert "...[truncated]" in caplog.text
+
+    def test_log_performance_fast(self, caplog):
+        """Test logging fast performance."""
+        log_performance("fast_op", 50)
+        assert "text-green-400" in str(live_log[-1])
+
+    def test_log_performance_slow(self, caplog):
+        """Test logging slow performance."""
+        log_performance("slow_op", 1000)
+        assert "text-red-500" in str(live_log[-1])

@@ -1,6 +1,8 @@
 import pytest
+import os
 from flask import json
 from app.api_routes import api_bp
+from app import auth
 
 class TestApiRoutes:
     """Test API routes blueprint."""
@@ -109,3 +111,86 @@ class TestApiRoutes:
             response = client.post('/middleware/api/settings',
                                  json={'key': 'test_key', 'value': 'test_value'})
             assert response.status_code == 200
+
+    def test_get_key_stats(self, app, client, mocker, monkeypatch):
+        """Test getting key statistics."""
+        monkeypatch.setattr('app.config.MIDDLEWARE_PASSWORD', None)
+
+        mock_stats = {'requests': 10, 'success': 8}
+        mock_km = mocker.patch('app.api_routes.key_manager')
+        mock_km.get_key_aggregated_stats.return_value = mock_stats
+
+        with app.test_client() as client:
+            response = client.get('/middleware/api/keys/1/stats')
+            assert response.status_code == 200
+            data = json.loads(response.data)
+            assert data == mock_stats
+
+    def test_get_global_stats(self, app, client, mocker, monkeypatch):
+        """Test getting global statistics."""
+        monkeypatch.setattr('app.config.MIDDLEWARE_PASSWORD', None)
+
+        mock_stats = {'total_requests': 100}
+        mock_km = mocker.patch('app.api_routes.key_manager')
+        mock_km.get_global_stats.return_value = mock_stats
+
+        with app.test_client() as client:
+            response = client.get('/middleware/api/global-stats')
+            assert response.status_code == 200
+            data = json.loads(response.data)
+            assert data == mock_stats
+
+    def test_bulk_action(self, app, client, mocker, monkeypatch):
+        """Test bulk action on keys."""
+        monkeypatch.setattr('app.config.MIDDLEWARE_PASSWORD', None)
+
+        mock_km = mocker.patch('app.api_routes.key_manager')
+        mock_km.bulk_update_status.return_value = (True, "Bulk action completed")
+
+        with app.test_client() as client:
+            response = client.post('/middleware/api/keys/bulk-action',
+                                 json={'action': 'disable', 'key_ids': [1, 2]})
+            assert response.status_code == 200
+            data = json.loads(response.data)
+            assert data['success'] == True
+
+    def test_export_keys(self, app, client, mocker, monkeypatch):
+        """Test exporting keys."""
+        monkeypatch.setattr(auth, 'MIDDLEWARE_PASSWORD', None)
+
+        mock_export = [{'id': 1, 'name': 'Key1'}]
+        mock_km = mocker.patch('app.api_routes.key_manager')
+        mock_km.get_all_keys_for_export.return_value = mock_export
+
+        with app.test_client() as client:
+            response = client.get('/middleware/api/keys/export')
+            assert response.status_code == 200
+            data = json.loads(response.data)
+            assert data == mock_export
+
+    def test_import_keys(self, app, client, mocker, monkeypatch):
+        """Test importing keys."""
+        monkeypatch.setattr('app.config.MIDDLEWARE_PASSWORD', None)
+
+        mock_km = mocker.patch('app.api_routes.key_manager')
+        mock_km.bulk_import_keys.return_value = (2, 0, "Import successful")
+
+        with app.test_client() as client:
+            response = client.post('/middleware/api/keys/import',
+                                 json=[{'name': 'Key1', 'key': 'val1'}])
+            assert response.status_code == 200
+            data = json.loads(response.data)
+            assert data['success'] == True
+
+    def test_get_single_setting(self, app, client, mocker, monkeypatch):
+        """Test getting a single setting."""
+        monkeypatch.setattr('app.config.MIDDLEWARE_PASSWORD', None)
+
+        mock_km = mocker.patch('app.api_routes.key_manager')
+        mock_km.get_setting.return_value = 'test_value'
+
+        with app.test_client() as client:
+            response = client.get('/middleware/api/settings/test_key')
+            assert response.status_code == 200
+            data = json.loads(response.data)
+            assert data['value'] == 'test_value'
