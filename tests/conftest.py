@@ -15,14 +15,16 @@ def client(app):
 @pytest.fixture
 def test_app():
     """Test app fixture for auth tests."""
+    import os
     from flask import Flask
-    app = Flask(__name__)
+    import app.auth as auth
+    template_folder = os.path.join(os.path.dirname(__file__), '..', 'app', 'templates')
+    app = Flask(__name__, template_folder=template_folder)
+    app.root_path = os.path.dirname(template_folder)
     app.secret_key = 'test'
     from app.auth import auth_bp
     app.register_blueprint(auth_bp)
-    # Mock render_template to return simple HTML
-    with patch('flask.render_template') as mock_render, \
-         patch('flask.url_for') as mock_url:
-        mock_render.return_value = '<html>Login</html>'
+    # Mock url_for
+    with patch('flask.url_for') as mock_url:
         mock_url.return_value = '/middleware/'
         yield app

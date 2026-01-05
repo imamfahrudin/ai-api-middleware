@@ -29,7 +29,7 @@ def login():
             return redirect(next_url)
         else:
             error = 'Invalid Credentials. Please try again.'
-    return f'Login page: {error}' if error else 'Login page'
+    return render_template('login.html', error=error)
 
 @auth_bp.route('/middleware/logout')
 def logout():

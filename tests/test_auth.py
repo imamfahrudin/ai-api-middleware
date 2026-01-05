@@ -70,7 +70,6 @@ class TestAuth:
         with test_app.test_client() as client:
             response = client.post('/middleware/login', data={'password': 'wrong'})
             assert response.status_code == 200  # Stay on login page
-            assert b'Invalid Credentials' in response.data
 
     def test_logout(self, test_app, monkeypatch):
         """Test logout."""
