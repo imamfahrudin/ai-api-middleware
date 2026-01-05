@@ -512,148 +512,6 @@
                 </div>
             </div>
 
-            <!-- Rate Limiting Settings -->
-            <div class="bg-gray-800 rounded-lg p-6 mb-6">
-                <h2 class="text-xl font-semibold text-white mb-4 flex items-center gap-2">
-                    <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                    </svg>
-                    Rate Limiting
-                </h2>
-
-                <div class="space-y-4">
-                    <!-- Enable Rate Limiting -->
-                    <div class="flex items-center justify-between">
-                        <div class="flex-1">
-                            <div class="field-header">
-                                <h3 class="text-white font-medium">Enable Rate Limiting</h3>
-                                <div class="tooltip">
-                                    <div class="info-icon">i</div>
-                                    <span class="tooltiptext">Limit request rate per client to prevent abuse and ensure fair usage. When enabled, clients exceeding the rate limit will receive 429 responses.</span>
-                                </div>
-                            </div>
-                            <p class="text-gray-400 text-sm">Limit request rate per client</p>
-                        </div>
-                        <label class="relative inline-flex items-center cursor-pointer ml-4">
-                            <input type="checkbox" id="enable-rate-limiting-toggle" class="sr-only peer">
-                            <div class="w-11 h-6 bg-gray-600 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
-                        </label>
-                    </div>
-
-                    <!-- Requests Per Minute -->
-                    <div>
-                        <div class="field-header">
-                            <h3 class="text-white font-medium">Requests Per Minute</h3>
-                            <div class="tooltip">
-                                <div class="info-icon">i</div>
-                                <span class="tooltiptext">Maximum requests allowed per minute per client IP address. This limit helps prevent abuse while allowing reasonable usage patterns.</span>
-                            </div>
-                        </div>
-                        <p class="text-gray-400 text-sm mb-3">Maximum requests allowed per minute per client</p>
-                        <input type="number" id="requests-per-minute-input" class="w-full bg-gray-700 text-white rounded-md p-2 border border-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500" value="60" min="1" max="1000">
-                    </div>
-
-                    <!-- Rate Limiting Strategy -->
-                    <div>
-                        <div class="field-header">
-                            <h3 class="text-white font-medium">Rate Limiting Strategy</h3>
-                            <div class="tooltip">
-                                <div class="info-icon">i</div>
-                                <span class="tooltiptext">Algorithm for rate limiting: Fixed Window (resets at fixed intervals), Sliding Window (smooth rate limiting), Token Bucket (allows bursts).</span>
-                            </div>
-                        </div>
-                        <p class="text-gray-400 text-sm mb-3">Algorithm for rate limiting</p>
-                        <select id="rate-limiting-strategy-select" class="w-full bg-gray-700 text-white rounded-md p-2 border border-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500">
-                            <option value="fixed_window" selected>Fixed Window</option>
-                            <option value="sliding_window">Sliding Window</option>
-                            <option value="token_bucket">Token Bucket</option>
-                        </select>
-                    </div>
-
-                    <!-- Burst Allowance -->
-                    <div>
-                        <div class="field-header">
-                            <h3 class="text-white font-medium">Burst Allowance</h3>
-                            <div class="tooltip">
-                                <div class="info-icon">i</div>
-                                <span class="tooltiptext">Extra requests allowed in short bursts above the normal rate limit. Useful for handling legitimate burst traffic patterns.</span>
-                            </div>
-                        </div>
-                        <p class="text-gray-400 text-sm mb-3">Extra requests allowed in short bursts</p>
-                        <input type="number" id="burst-allowance-input" class="w-full bg-gray-700 text-white rounded-md p-2 border border-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500" value="10" min="0" max="100">
-                    </div>
-                </div>
-            </div>
-
-            <!-- Security Settings -->
-            <div class="bg-gray-800 rounded-lg p-6 mb-6">
-                <h2 class="text-xl font-semibold text-white mb-4 flex items-center gap-2">
-                    <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-                    </svg>
-                    Security
-                </h2>
-
-                <div class="space-y-4">
-                    <!-- Enable CORS -->
-                    <div class="flex items-center justify-between">
-                        <div class="flex-1">
-                            <div class="field-header">
-                                <h3 class="text-white font-medium">Enable CORS</h3>
-                                <div class="tooltip">
-                                    <div class="info-icon">i</div>
-                                    <span class="tooltiptext">Cross-Origin Resource Sharing support. Allows web applications from different domains to make requests to this API. Required for web-based clients.</span>
-                                </div>
-                            </div>
-                            <p class="text-gray-400 text-sm">Cross-Origin Resource Sharing support</p>
-                        </div>
-                        <label class="relative inline-flex items-center cursor-pointer ml-4">
-                            <input type="checkbox" id="enable-cors-toggle" class="sr-only peer" checked>
-                            <div class="w-11 h-6 bg-gray-600 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
-                        </label>
-                    </div>
-
-                    <!-- CORS Origins -->
-                    <div>
-                        <div class="field-header">
-                            <h3 class="text-white font-medium">CORS Origins</h3>
-                            <div class="tooltip">
-                                <div class="info-icon">i</div>
-                                <span class="tooltiptext">Allowed origins for CORS requests. Use '*' for all origins (less secure) or specify comma-separated domains like 'https://example.com,https://app.example.com'.</span>
-                            </div>
-                        </div>
-                        <p class="text-gray-400 text-sm mb-3">Allowed origins (comma-separated, * for all)</p>
-                        <input type="text" id="cors-origins-input" class="w-full bg-gray-700 text-white rounded-md p-2 border border-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500" value="*" placeholder="* or https://example.com,https://api.example.com">
-                    </div>
-
-                    <!-- Max Request Size -->
-                    <div>
-                        <div class="field-header">
-                            <h3 class="text-white font-medium">Max Request Size (bytes)</h3>
-                            <div class="tooltip">
-                                <div class="info-icon">i</div>
-                                <span class="tooltiptext">Maximum allowed request body size. Protects against oversized requests that could cause memory issues or be used for DoS attacks.</span>
-                            </div>
-                        </div>
-                        <p class="text-gray-400 text-sm mb-3">Maximum allowed request body size</p>
-                        <input type="number" id="max-request-size-input" class="w-full bg-gray-700 text-white rounded-md p-2 border border-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500" value="10485760" min="1024" max="104857600">
-                    </div>
-
-                    <!-- Blocked User Agents -->
-                    <div>
-                        <div class="field-header">
-                            <h3 class="text-white font-medium">Blocked User Agents</h3>
-                            <div class="tooltip">
-                                <div class="info-icon">i</div>
-                                <span class="tooltiptext">User agent strings to block. Requests from these user agents will be rejected. Useful for blocking unwanted bots or crawlers.</span>
-                            </div>
-                        </div>
-                        <p class="text-gray-400 text-sm mb-3">User agents to block (comma-separated)</p>
-                        <input type="text" id="blocked-user-agents-input" class="w-full bg-gray-700 text-white rounded-md p-2 border border-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500" value="" placeholder="curl,wget,bot">
-                    </div>
-                </div>
-            </div>
-
             <!-- Advanced Proxy Settings -->
             <div class="bg-gray-800 rounded-lg p-6 mb-6">
                 <h2 class="text-xl font-semibold text-white mb-4 flex items-center gap-2">
@@ -787,19 +645,6 @@
                         <input type="number" id="json-buffer-limit-input" class="w-full bg-gray-700 text-white rounded-md p-2 border border-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500" value="2048" min="1024" max="16384" step="256">
                     </div>
 
-                    <!-- Max Concurrent Requests -->
-                    <div>
-                        <div class="field-header">
-                            <h3 class="text-white font-medium">Max Concurrent Requests</h3>
-                            <div class="tooltip">
-                                <div class="info-icon">i</div>
-                                <span class="tooltiptext">Maximum simultaneous requests allowed. Helps prevent resource exhaustion and ensures fair resource allocation across clients.</span>
-                            </div>
-                        </div>
-                        <p class="text-gray-400 text-sm mb-3">Maximum simultaneous requests allowed</p>
-                        <input type="number" id="max-concurrent-requests-input" class="w-full bg-gray-700 text-white rounded-md p-2 border border-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500" value="100" min="1" max="1000">
-                    </div>
-
                     <!-- Request ID Injection -->
                     <div class="flex items-center justify-between">
                         <div class="flex-1">
@@ -875,33 +720,12 @@
             log_request_body: false,
             log_response_body: false,
 
-            // Rate Limiting Settings
-            enable_rate_limiting: false,
-            requests_per_minute: 60,
-            rate_limiting_strategy: 'sliding_window',
-            burst_allowance: 10,
-
-            // Security Settings
-            enable_cors: true,
-            cors_origins: '*',
-            enable_request_validation: false,
-            max_request_size: 10485760,
-            blocked_user_agents: '',
-
             // Advanced Proxy Settings
-            enable_health_checks: true,
-            health_check_interval: 300,
             failover_strategy: 'round_robin',
-            enable_circuit_breaker: false,
-            circuit_breaker_threshold: 5,
             enable_request_id_injection: true,
 
             // Performance Fine-tuning
-            buffer_size: 8192,
-            max_concurrent_requests: 100,
-            keepalive_timeout: 30,
-            enable_graceful_shutdown: true,
-            cache_max_age: 300
+            buffer_size: 8192
         };
 
         // Load settings from localStorage and server
@@ -964,22 +788,9 @@
             document.getElementById('log-request-body-toggle').checked = currentSettings.log_request_body;
             document.getElementById('log-response-body-toggle').checked = currentSettings.log_response_body;
 
-            // Rate Limiting Settings
-            document.getElementById('enable-rate-limiting-toggle').checked = currentSettings.enable_rate_limiting;
-            document.getElementById('requests-per-minute-input').value = currentSettings.requests_per_minute;
-            document.getElementById('rate-limiting-strategy-select').value = currentSettings.rate_limiting_strategy;
-            document.getElementById('burst-allowance-input').value = currentSettings.burst_allowance;
-
-            // Security Settings
-            document.getElementById('enable-cors-toggle').checked = currentSettings.enable_cors;
-            document.getElementById('cors-origins-input').value = currentSettings.cors_origins;
-            document.getElementById('max-request-size-input').value = currentSettings.max_request_size;
-            document.getElementById('blocked-user-agents-input').value = currentSettings.blocked_user_agents;
-
             // Advanced Proxy Settings
             document.getElementById('failover-strategy-select').value = currentSettings.failover_strategy;
             document.getElementById('buffer-size-input').value = currentSettings.buffer_size;
-            document.getElementById('max-concurrent-requests-input').value = currentSettings.max_concurrent_requests;
             document.getElementById('enable-request-id-injection-toggle').checked = currentSettings.enable_request_id_injection;
         }
 
@@ -1023,22 +834,9 @@
                 log_request_body: document.getElementById('log-request-body-toggle').checked,
                 log_response_body: document.getElementById('log-response-body-toggle').checked,
 
-                // Rate Limiting Settings
-                enable_rate_limiting: document.getElementById('enable-rate-limiting-toggle').checked,
-                requests_per_minute: parseInt(document.getElementById('requests-per-minute-input').value),
-                rate_limiting_strategy: document.getElementById('rate-limiting-strategy-select').value,
-                burst_allowance: parseInt(document.getElementById('burst-allowance-input').value),
-
-                // Security Settings
-                enable_cors: document.getElementById('enable-cors-toggle').checked,
-                cors_origins: document.getElementById('cors-origins-input').value,
-                max_request_size: parseInt(document.getElementById('max-request-size-input').value),
-                blocked_user_agents: document.getElementById('blocked-user-agents-input').value,
-
                 // Advanced Proxy Settings
                 failover_strategy: document.getElementById('failover-strategy-select').value,
                 buffer_size: parseInt(document.getElementById('buffer-size-input').value),
-                max_concurrent_requests: parseInt(document.getElementById('max-concurrent-requests-input').value),
                 enable_request_id_injection: document.getElementById('enable-request-id-injection-toggle').checked
             };
 
