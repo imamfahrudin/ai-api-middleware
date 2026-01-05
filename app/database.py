@@ -61,37 +61,24 @@ class KeyManager:
                 )
             """)
 
-            # --- Safely Upgrade 'keys' table ---
-            cursor.execute("PRAGMA table_info(keys)")
-            columns = [info[1] for info in cursor.fetchall()]
-            if 'note' not in columns:
-                cursor.execute("ALTER TABLE keys ADD COLUMN note TEXT")
-            if 'last_rotated_at' not in columns:
-                cursor.execute("ALTER TABLE keys ADD COLUMN last_rotated_at TEXT NOT NULL DEFAULT '1970-01-01T00:00:00Z'")
-            if 'priority' not in columns:
-                cursor.execute("ALTER TABLE keys ADD COLUMN priority INTEGER NOT NULL DEFAULT 1")
-            if 'key_type' in columns:
-                logging.info("Old 'key_type' column found. It is no longer used.")
-
-
             # --- Create 'daily_stats' table if it doesn't exist ---
             cursor.execute("""
                 CREATE TABLE IF NOT EXISTS daily_stats (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT, key_id INTEGER NOT NULL, date TEXT NOT NULL,
-                    requests INTEGER NOT NULL DEFAULT 0, successes INTEGER NOT NULL DEFAULT 0, errors INTEGER NOT NULL DEFAULT 0,
-                    tokens_in INTEGER NOT NULL DEFAULT 0, tokens_out INTEGER NOT NULL DEFAULT 0, total_latency_ms INTEGER NOT NULL DEFAULT 0,
-                    error_codes TEXT NOT NULL DEFAULT '{}', model_usage TEXT NOT NULL DEFAULT '{}',
-                    FOREIGN KEY (key_id) REFERENCES keys (id) ON DELETE CASCADE, UNIQUE (key_id, date)
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    key_id INTEGER NOT NULL,
+                    date TEXT NOT NULL,
+                    requests INTEGER NOT NULL DEFAULT 0,
+                    successes INTEGER NOT NULL DEFAULT 0,
+                    errors INTEGER NOT NULL DEFAULT 0,
+                    tokens_in INTEGER NOT NULL DEFAULT 0,
+                    tokens_out INTEGER NOT NULL DEFAULT 0,
+                    total_latency_ms INTEGER NOT NULL DEFAULT 0,
+                    error_codes TEXT NOT NULL DEFAULT '{}',
+                    model_usage TEXT NOT NULL DEFAULT '{}',
+                    FOREIGN KEY (key_id) REFERENCES keys (id) ON DELETE CASCADE,
+                    UNIQUE (key_id, date)
                 )
             """)
-            
-            # --- Safely Upgrade 'daily_stats' table ---
-            cursor.execute("PRAGMA table_info(daily_stats)")
-            daily_stats_columns = [info[1] for info in cursor.fetchall()]
-            if 'error_codes' not in daily_stats_columns:
-                cursor.execute("ALTER TABLE daily_stats ADD COLUMN error_codes TEXT NOT NULL DEFAULT '{}'")
-            if 'model_usage' not in daily_stats_columns:
-                cursor.execute("ALTER TABLE daily_stats ADD COLUMN model_usage TEXT NOT NULL DEFAULT '{}'")
 
             # --- Create 'settings' table for configuration ---
             cursor.execute("""
