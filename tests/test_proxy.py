@@ -8,6 +8,7 @@ class TestProxy:
 
     def test_configure_session_timeout(self, mocker):
         """Test session timeout configuration."""
+        mock_session = mocker.Mock()
         mock_km = mocker.patch('app.proxy.key_manager')
         mock_km.get_setting.side_effect = lambda key, default: {
             'retry_total': '5',
@@ -16,8 +17,16 @@ class TestProxy:
             'pool_maxsize': '50'
         }.get(key, default)
 
-        configure_session_timeout(5, 30)
-        # Check that session is configured (hard to test directly, but no errors)
+        from app.proxy import configure_session_timeout
+        configure_session_timeout(mock_session, 5, 30)
+
+        # Assert that mount was called for http and https
+        assert mock_session.mount.call_count == 2
+        mock_session.mount.assert_any_call("http://", mocker.ANY)
+        mock_session.mount.assert_any_call("https://", mocker.ANY)
+
+        # Assert timeout was set
+        assert mock_session.timeout == (5, 30)
 
     def test_proxy_request_gemini(self, app, client, mocker, monkeypatch):
         """Test proxying Gemini request."""

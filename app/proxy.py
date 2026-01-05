@@ -17,8 +17,10 @@ key_manager = KeyManager()
 # Performance optimization: Connection pooling for HTTP requests
 session = requests.Session()
 
-def configure_session_timeout(connect_timeout=10, read_timeout=60):
+def configure_session_timeout(session_to_configure=None, connect_timeout=10, read_timeout=60):
     """Configure session with dynamic timeout settings"""
+    if session_to_configure is None:
+        session_to_configure = session
     # Get retry settings from configuration
     retry_total = key_manager.get_setting('retry_total', '7')
     retry_backoff_factor = key_manager.get_setting('retry_backoff_factor', '0.1')
@@ -57,14 +59,14 @@ def configure_session_timeout(connect_timeout=10, read_timeout=60):
         pool_maxsize=pool_maxsize,
         max_retries=retry_strategy
     )
-    session.mount("http://", adapter)
-    session.mount("https://", adapter)
+    session_to_configure.mount("http://", adapter)
+    session_to_configure.mount("https://", adapter)
 
     # Configure default timeouts for the session
-    session.timeout = (connect_timeout, read_timeout)
+    session_to_configure.timeout = (connect_timeout, read_timeout)
 
 # Initialize with default timeouts
-configure_session_timeout()
+configure_session_timeout(session)
 
 def stream_with_retry(resp, buffer_size, streaming_timeout, max_stream_retries=None):
     """
@@ -694,7 +696,7 @@ def proxy(path):
             # Choose request method based on settings
             if connection_pooling_enabled:
                 # Reconfigure session with current timeout settings
-                configure_session_timeout(connect_timeout, min(read_timeout, streaming_timeout))
+                configure_session_timeout(session, connect_timeout, min(read_timeout, streaming_timeout))
 
                 # Use session with connection pooling
                 resp = session.request(method=request.method, url=target_url, headers=headers, data=request_data, params=request_params, stream=streaming_enabled, timeout=request_timeout_tuple)

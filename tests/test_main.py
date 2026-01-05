@@ -10,12 +10,6 @@ class TestMain:
         assert app is not None
         assert app.name == 'main'
 
-    def test_app_creation(self):
-        """Test that the Flask app is created successfully."""
-        from main import app
-        assert app is not None
-        assert app.name == 'main'
-
     def test_dashboard_route_requires_login(self, client, monkeypatch):
         """Test dashboard requires login."""
         monkeypatch.setattr('app.auth.MIDDLEWARE_PASSWORD', 'test_pass')

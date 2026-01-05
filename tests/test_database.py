@@ -30,23 +30,80 @@ class TestKeyManager:
         assert len(keys) == 1
         assert keys[0]['key_value'] == 'test_key_long_enough'
 
-    def test_get_next_key(self, key_manager):
-        """Test getting next key."""
+    def test_get_next_key_rotation(self, key_manager):
+        """Test key rotation selects least recently used key."""
+        # Add keys with different rotation times
         key_manager.add_key('key1_long_enough_for_validation', 'Key 1')
         key_manager.add_key('key2_long_enough_for_validation', 'Key 2')
-        key = key_manager.get_next_key()
-        assert key is not None
-        assert 'id' in key
-        assert 'key_value' in key
+        key_manager.add_key('key3_long_enough_for_validation', 'Key 3')
+        
+        # Get first key (should be key1 as it's first added)
+        key1 = key_manager.get_next_key()
+        assert key1['key_value'] == 'key1_long_enough_for_validation'
+        
+        # Get second key (should be key2 as it's next in rotation)
+        key2 = key_manager.get_next_key()
+        assert key2['key_value'] == 'key2_long_enough_for_validation'
+        
+        # Get third key (should be key3)
+        key3 = key_manager.get_next_key()
+        assert key3['key_value'] == 'key3_long_enough_for_validation'
+        
+        # Next should rotate back to key1 (least recently used)
+        key1_again = key_manager.get_next_key()
+        assert key1_again['key_value'] == 'key1_long_enough_for_validation'
 
-    def test_update_key_stats(self, key_manager):
-        """Test updating key stats."""
+    def test_key_healing_from_resting(self, key_manager):
+        """Test that resting keys are healed back to healthy after timeout."""
+        import time
+        from unittest.mock import patch
+        
         key_manager.add_key('test_key_long_enough_for_validation', 'Test Key')
         key_id = key_manager.get_all_keys_from_db()[0]['id']
+        
+        # Manually set key to resting with past timeout
+        with key_manager.lock:
+            cursor = key_manager.conn.cursor()
+            past_time = '2000-01-01T00:00:00Z'  # Past time
+            cursor.execute("UPDATE keys SET status = 'Resting', disabled_until = ? WHERE id = ?", (past_time, key_id))
+            key_manager.conn.commit()
+        
+        # get_next_key should heal the resting key
+        key = key_manager.get_next_key()
+        assert key is not None
+        assert key['status'] == 'Healthy'
+
+    def test_update_key_stats_status_transitions(self, key_manager):
+        """Test key status transitions based on error codes."""
+        key_manager.add_key('test_key_long_enough_for_validation', 'Test Key')
+        key_id = key_manager.get_all_keys_from_db()[0]['id']
+        
+        # Test 429 error -> Resting status
+        key_manager.update_key_stats(key_id, success=False, model_name='test_model', error_code=429, latency_ms=100)
+        key = key_manager.get_key_details(key_id)
+        assert key['status'] == 'Resting'
+        
+        # Test success on resting key -> Healthy status
         key_manager.update_key_stats(key_id, success=True, model_name='test_model', latency_ms=100)
+        key = key_manager.get_key_details(key_id)
+        assert key['status'] == 'Healthy'
+        
+        # Test 401 error -> Disabled status
+        key_manager.update_key_stats(key_id, success=False, model_name='test_model', error_code=401, latency_ms=100)
+        key = key_manager.get_key_details(key_id)
+        assert key['status'] == 'Disabled'
+
+    def test_update_key_stats_success_metrics(self, key_manager):
+        """Test updating key stats captures success metrics and token counts."""
+        key_manager.add_key('test_key_long_enough_for_validation', 'Test Key')
+        key_id = key_manager.get_all_keys_from_db()[0]['id']
+        key_manager.update_key_stats(key_id, success=True, model_name='test_model', latency_ms=100, tokens_in=10, tokens_out=20)
         stats = key_manager.get_key_aggregated_stats(key_id)
         assert stats['total_requests'] == 1
         assert stats['successful_requests'] == 1
+        assert stats['total_tokens_in'] == 10
+        assert stats['total_tokens_out'] == 20
+        assert stats['avg_latency'] == 100
 
     def test_get_setting_default(self, key_manager):
         """Test getting default setting."""
