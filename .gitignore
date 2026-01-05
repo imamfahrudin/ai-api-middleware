@@ -53,6 +53,14 @@ data/
 *.log
 logs/
 
+# Testing
+.pytest_cache/
+.coverage
+coverage.xml
+htmlcov/
+.tox/
+.cache
+
 # Docker
 docker-compose.override.yml
 

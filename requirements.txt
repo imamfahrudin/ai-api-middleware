@@ -2,3 +2,6 @@ Flask
 requests
 python-dotenv
 flasgger
+pytest
+pytest-cov
+pytest-mock
