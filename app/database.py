@@ -11,7 +11,8 @@ class KeyManager:
     def __init__(self, db_path='data/keys.db'):
         self.db_path = db_path
         self.lock = threading.RLock()  # Use RLock for reentrant locking to prevent deadlock
-        os.makedirs(os.path.dirname(db_path), exist_ok=True)
+        if db_path != ':memory:':
+            os.makedirs(os.path.dirname(db_path), exist_ok=True)
         self.conn = sqlite3.connect(db_path, check_same_thread=False)
         self.conn.row_factory = sqlite3.Row
         # Add caching for expensive operations
