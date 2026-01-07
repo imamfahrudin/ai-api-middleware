@@ -70,9 +70,12 @@ class TestProxy:
                                  json={'messages': [{'role': 'user', 'content': 'Hello'}]})
             assert response.status_code == 200
 
-    def test_invalid_provider(self, app, client, monkeypatch):
+    def test_invalid_provider(self, app, client, mocker, monkeypatch):
         """Test invalid provider detection."""
         monkeypatch.setattr('app.config.MIDDLEWARE_PASSWORD', None)
+
+        mock_km = mocker.patch('app.proxy.key_manager')
+        mock_km.get_next_key.return_value = None
 
         with app.test_client() as client:
             response = client.post('/invalid/provider',

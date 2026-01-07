@@ -22,31 +22,10 @@ def configure_session_timeout(session_to_configure=None, connect_timeout=10, rea
     if session_to_configure is None:
         session_to_configure = session
     # Get retry settings from configuration
-    retry_total = key_manager.get_setting('retry_total', '7')
-    retry_backoff_factor = key_manager.get_setting('retry_backoff_factor', '0.1')
-    pool_connections = key_manager.get_setting('pool_connections', '20')
-    pool_maxsize = key_manager.get_setting('pool_maxsize', '100')
-
-    # Convert to appropriate types with fallbacks
-    try:
-        retry_total = int(retry_total)
-    except (ValueError, TypeError):
-        retry_total = 7
-
-    try:
-        retry_backoff_factor = float(retry_backoff_factor)
-    except (ValueError, TypeError):
-        retry_backoff_factor = 0.1
-
-    try:
-        pool_connections = int(pool_connections)
-    except (ValueError, TypeError):
-        pool_connections = 20
-
-    try:
-        pool_maxsize = int(pool_maxsize)
-    except (ValueError, TypeError):
-        pool_maxsize = 100
+    retry_total = int(key_manager.get_setting('retry_total', '7') or 7)
+    retry_backoff_factor = float(key_manager.get_setting('retry_backoff_factor', '0.1') or 0.1)
+    pool_connections = int(key_manager.get_setting('pool_connections', '20') or 20)
+    pool_maxsize = int(key_manager.get_setting('pool_maxsize', '100') or 100)
 
     retry_strategy = Retry(
         total=retry_total,

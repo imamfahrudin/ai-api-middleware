@@ -8,7 +8,9 @@ from app import auth
 @pytest.fixture
 def test_app():
     """Create a test app."""
-    app = Flask(__name__)
+    template_folder = os.path.join(os.path.dirname(__file__), '..', 'app', 'templates')
+    app = Flask(__name__, template_folder=template_folder)
+    app.root_path = os.path.dirname(template_folder)
     app.secret_key = 'test'
     app.register_blueprint(auth_bp)
     return app
@@ -16,11 +18,9 @@ def test_app():
 class TestAuth:
     """Test authentication blueprint."""
 
-    def test_login_required_no_password(self, test_app):
+    def test_login_required_no_password(self, test_app, monkeypatch):
         """Test login_required bypasses when no password set."""
-        from app import config
-        original_password = config.MIDDLEWARE_PASSWORD
-        config.MIDDLEWARE_PASSWORD = None
+        monkeypatch.setattr('app.auth.MIDDLEWARE_PASSWORD', None)
 
         @test_app.route('/test')
         @login_required
@@ -31,8 +31,6 @@ class TestAuth:
             response = client.get('/test')
             assert response.status_code == 200
             assert b'success' in response.data
-
-        config.MIDDLEWARE_PASSWORD = original_password
 
     def test_login_required_with_password_not_logged_in(self, test_app, monkeypatch):
         """Test login_required redirects when password set and not logged in."""
